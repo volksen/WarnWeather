@@ -62,3 +62,20 @@ test('seedDefaults enables night pause and Leco font by default', () => {
   assert.equal(read.sleepStartHour, '22');
   assert.equal(read.sleepEndHour, '7');
 });
+
+test('seedDefaults backfills sleep keys into existing installs that lack them', () => {
+  const store = installFakeStorage();
+  delete require.cache[require.resolve('../src/pkjs/clay-settings')];
+  const claySettings = require('../src/pkjs/clay-settings');
+  // Simulate a pre-upgrade install: user had custom provider+font but no sleep keys.
+  store['clay-settings'] = JSON.stringify({ provider: 'dwd', timeFont: 'bitham' });
+  claySettings.seedDefaults(COLORS);
+  const read = claySettings.read();
+  // Backfill must enable night-pause for the existing user.
+  assert.equal(read.sleepNightEnabled, true);
+  assert.equal(read.sleepStartHour, '22');
+  assert.equal(read.sleepEndHour, '7');
+  // Pre-existing custom values must be preserved (backfill only fills missing keys).
+  assert.equal(read.provider, 'dwd');
+  assert.equal(read.timeFont, 'bitham');
+});

@@ -59,6 +59,9 @@ test('mapResponse anchors at the current hour and returns 24-length trends', () 
   assert.equal(out.windTrend[0], 18);   // km/h passthrough
   assert.equal(out.gustTrend[0], 23);   // (18 + 5) km/h passthrough
   assert.equal(out.currentTemp, 71.5);
+  // Element [1] proves the per-element transform applies across the whole slice.
+  assert.equal(out.tempTrend[1], 69);          // 50 + 19
+  assert.equal(out.precipTrend[1], 19 / 100);  // probability 19% at bucket 19
 });
 
 test('mapResponse returns null when fewer than 24 buckets remain after the anchor', () => {

@@ -34,8 +34,11 @@ make_gif() {
   shift
   local tmp
   tmp="$(mktemp -d -t ww-gif.XXXXXX)"
+  trap 'rm -rf "$tmp"' RETURN
   local n=0 pat f
   for pat in "$@"; do
+    # nullglob makes an unmatched pattern expand to nothing; the -e guard
+    # below also skips the empty-string case, so no phantom frame is counted.
     for f in $pat; do
       [[ -e "$f" ]] || continue
       cp "$f" "$tmp/$(printf 'f_%03d.png' "$n")"

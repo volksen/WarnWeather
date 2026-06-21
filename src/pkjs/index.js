@@ -5,6 +5,7 @@ var forecastSeries = require('./forecast-series.js');
 var WundergroundProvider = require('./weather/wunderground.js');
 var OpenWeatherMapProvider = require('./weather/openweathermap.js')
 var DwdProvider = require('./weather/dwd.js');
+var OpenMeteoProvider = require('./weather/openmeteo.js').OpenMeteoProvider;
 var WeatherProvider = require('./weather/provider.js');
 var createTelemetryClient = require('./telemetry.js');
 var Clay = require('./clay/_source.js');
@@ -437,6 +438,9 @@ function setProvider(providerId) {
             break;
         case 'dwd':
             app.provider = new DwdProvider();
+            break;
+        case 'openmeteo':
+            app.provider = new OpenMeteoProvider();
             break;
         case 'wunderground':
             app.provider = new WundergroundProvider();

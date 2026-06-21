@@ -72,3 +72,16 @@ test('mapResponse returns null on malformed input', () => {
   assert.equal(mapResponse({ hourly: {} }, BASE), null);
   assert.equal(mapResponse(null, BASE), null);
 });
+
+const WeatherProvider = require('../src/pkjs/weather/provider.js');
+const OpenMeteoProvider = openmeteo.OpenMeteoProvider;
+
+test('OpenMeteoProvider has the expected identity and inherits the base class', () => {
+  const p = new OpenMeteoProvider();
+  assert.equal(p.id, 'openmeteo');
+  assert.equal(p.name, 'Open-Meteo');
+  assert.ok(p instanceof WeatherProvider);
+  assert.equal(typeof p.withProviderData, 'function');
+  // Sun events are inherited (no override), like dwd.js.
+  assert.equal(p.withSunEvents, WeatherProvider.prototype.withSunEvents);
+});

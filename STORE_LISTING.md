@@ -18,6 +18,14 @@ WarnWeather is a weather watchface for Pebble, inspired by ForecasWatch2. It pac
 whole day of temperature, precipitation, and wind into a single graph, and keeps a
 3-week calendar and a live rain radar one wrist-flick away.
 
+FORECAST GRAPH VS. RAIN RADAR
+The forecast graph is the hourly prediction — looking up to 24 hours ahead, it shows the
+chance of rain each hour. It's a model forecast, good for "will it rain this afternoon?"
+The rain radar is short-term and based on actual radar measurements moving toward you: it
+turns the next 2 hours into a bar graph where each bar is one 5-minute frame and its height
+is the rain amount, so you see exactly when (and how much) rain reaches your exact spot.
+Good for "is it about to rain on me right now?"
+
 TIME
 - Current time
 - Next sunrise or sunset time

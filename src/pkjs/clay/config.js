@@ -242,6 +242,10 @@ module.exports = [
                 "defaultValue": "Forecast"
             },
             {
+                "type": "text",
+                "defaultValue": "<span style=\"font-size:.9rem;line-height:1.4rem;color:#a4a4a4;\">The forecast graph is the hourly prediction — looking up to 24 hours ahead, it shows temperature plus the chance of rain each hour. It's a model forecast, good for \"will it rain this afternoon?\" For \"is it about to rain on me right now?\", see Rain radar below.</span>"
+            },
+            {
                 "type": "select",
                 "defaultValue": "f",
                 "messageKey": "temperatureUnits",
@@ -355,7 +359,7 @@ module.exports = [
             },
             {
                 "type": "text",
-                "defaultValue": "<span style=\"color:#9aa0a6;\">Rain radar appears as a second screen revealed with a wrist flick, and only when radar data is available.<br>It shows a 2-hour rain nowcast — each bar is one 5-minute frame. Solid bars are rain at your exact location, while the hatched outline behind them is the strongest rain anywhere within 2 km — an early warning that rain is nearby even when it isn't directly overhead yet.</span>"
+                "defaultValue": "<span style=\"font-size:.9rem;line-height:1.4rem;color:#a4a4a4;\">Rain radar appears as a second screen revealed with a wrist flick, and only when radar data is available.<br>Unlike the forecast graph's hourly prediction, the radar is short-term and based on actual radar measurements moving toward you — good for \"is it about to rain on me right now?\" It turns the next 2 hours into a bar graph, each bar one 5-minute frame whose height is the rain amount. Solid bars are rain at your exact location; the hatched outline behind them is the strongest rain anywhere within 2 km — an early warning that rain is nearby even when it isn't directly overhead yet.</span>"
             },
             {
                 "type": "radiogroup",

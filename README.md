@@ -1,14 +1,14 @@
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/Toasbi/WarnWeather?label=latest&color=85C1E9&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAQAAABKfvVzAAAAAmJLR0QA/4ePzL8AAAC0SURBVDjLldLLCcJAFEbhP4oIE1xYhw1pA4JWYRGCVbhxoTshWIUNaAnBgB4XBiTJ3HncbALznXAZIpnDmHnnmSqAS470p2Fn8wrfNEzS+INX++ZS+J6CRZu4lGWWEgVPT2DsfmfFwbMSjiuxcXn8H5gX6Q+S+ZtRDofT7/uXRF5RSmJEncEliS2fDC5JrCPJjVn/lwglQx5M/NxMbO5NwnyQxHknSeOSxIaac+feo0lhn30BIXaN/u4MXmAAAAAASUVORK5CYII=)](https://github.com/Toasbi/WarnWeather/releases/latest)
 [![Pebble Store Hearts](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fappstore-api.repebble.com%2Fapi%2Fv1%2Fapps%2Fid%2F6a35bd1472de6e0008e7d156%3Fimage_ratio%3D1%26hardware%3Dbasalt%26firmware_version%3D3&query=%24.data%5B0%5D.hearts&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI%2BPHRpdGxlPmhlYXJ0PC90aXRsZT48cGF0aCBmaWxsPSJ3aGl0ZSIgZD0iTTEyLDIxLjM1TDEwLjU1LDIwLjAzQzUuNCwxNS4zNiAyLDEyLjI3IDIsOC41QzIsNS40MSA0LjQyLDMgNy41LDNDOS4yNCwzIDEwLjkxLDMuODEgMTIsNS4wOEMxMy4wOSwzLjgxIDE0Ljc2LDMgMTYuNSwzQzE5LjU4LDMgMjIsNS40MSAyMiw4LjVDMjIsMTIuMjcgMTguNiwxNS4zNiAxMy40NSwyMC4wM0wxMiwyMS4zNVoiIC8%2BPC9zdmc%2B&label=pebble%20store&color=%23FFAA00)](https://apps.repebble.com/6a35bd1472de6e0008e7d156)
-[![Rebble Store Hearts](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fappstore-api.rebble.io%2Fapi%2Fv1%2Fapps%2Fid%2F6a35bd1472de6e0008e7d156%3Fimage_ratio%3D1%26hardware%3Dbasalt%26firmware_version%3D3&query=%24.data%5B0%5D.hearts&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI%2BPHRpdGxlPmhlYXJ0PC90aXRsZT48cGF0aCBmaWxsPSJ3aGl0ZSIgZD0iTTEyLDIxLjM1TDEwLjU1LDIwLjAzQzUuNCwxNS4zNiAyLDEyLjI3IDIsOC41QzIsNS40MSA0LjQyLDMgNy41LDNDOS4yNCwzIDEwLjkxLDMuODEgMTIsNS4wOEMxMy4wOSwzLjgxIDE0Ljc2LDMgMTYuNSwzQzE5LjU4LDMgMjIsNS40MSAyMiw4LjVDMjIsMTIuMjcgMTguNiwxNS4zNiAxMy40NSwyMC4wM0wxMiwyMS4zNVoiIC8%2BPC9zdmc%2B&label=rebble%20store&color=%23FFAA00)
-](https://apps.rebble.io/en_US/application/6a35bd1472de6e0008e7d156)
+[![Rebble Store Hearts](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fappstore-api.rebble.io%2Fapi%2Fv1%2Fapps%2Fid%2F6a3645239d979d000abc99db%3Fimage_ratio%3D1%26hardware%3Dbasalt%26firmware_version%3D3&query=%24.data%5B0%5D.hearts&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI%2BPHRpdGxlPmhlYXJ0PC90aXRsZT48cGF0aCBmaWxsPSJ3aGl0ZSIgZD0iTTEyLDIxLjM1TDEwLjU1LDIwLjAzQzUuNCwxNS4zNiAyLDEyLjI3IDIsOC41QzIsNS40MSA0LjQyLDMgNy41LDNDOS4yNCwzIDEwLjkxLDMuODEgMTIsNS4wOEMxMy4wOSwzLjgxIDE0Ljc2LDMgMTYuNSwzQzE5LjU4LDMgMjIsNS40MSAyMiw4LjVDMjIsMTIuMjcgMTguNiwxNS4zNiAxMy40NSwyMC4wM0wxMiwyMS4zNVoiIC8%2BPC9zdmc%2B&label=rebble%20store&color=%23FFAA00)
+](https://apps.rebble.io/en_US/application/6a3645239d979d000abc99db)
 [![GitHub All Releases](https://img.shields.io/github/downloads/Toasbi/WarnWeather/total?label=downloads&logo=github)](https://github.com/Toasbi/WarnWeather/releases/latest/download/warnweather.pbw)
 [![Platform](https://img.shields.io/badge/platform-aplite%20%7C%20basalt%20%7C%20diorite%20%7C%20emery%20%7C%20flint-red?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAQAAABKfvVzAAAAAmJLR0QA/4ePzL8AAAC1SURBVDjL1ZSxDoIwFEWbMOLE6qgYdlb5FUkMFEOMox8pJsJg/A4HmGqOkwZtoTRx8b7t5p6h6X1PCIMIiIgIxBQxo+GlGt8OHOhrb4t73D6AK944sONbxVg8p9OAjmwovuLBiRLZm5IKxdIMpMBacxNgYwYkEGtuDNyZuwEG3waEbsDR9Q3yb4AUSFw+LkRRadU4o1gMtSmj1crXsh3ra6EB+W8XyHlFhcCnfscvE46A7cw8Ab9fQsIsgqKzAAAAAElFTkSuQmCC)](https://developer.rebble.io/developer.pebble.com/guides/tools-and-resources/hardware-information/index.html)
 [![GitHub](https://img.shields.io/github/license/Toasbi/WarnWeather?color=blue&logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAB7ElEQVRIie2TPWsUURSGnxsWjLosIgTJLpL8AbWwUKwjgpg%2FYEAQxCiCSLKgsAppBG38AFNolU72P4hlrLZQEwsVxSD4AWmyKFmLPBY5wWGys9ktBAtfGJh73o9z7p078K9ATeqkOqWmv9Fg0j84269vaIAelcx7u19TaSeBOgocBYaBlxE%2Bop4BWimlL32PqJ5Sj6hVdVZtqRsWYyM0dbUW3tNF4eM9gt6py5n1ctSKMF7U5IL6NkRN9ZxaC24uEzAXtVponkb9vTrd64h2qSshvpzjtjXIcBej%2FlkdznL5WzQNjALPgUZeXDQUcCs8B4BLRcI96lf1cXyPjjqz0w7Ua6EdU59Ext5uDa6rP9VqrB%2Bq39VyUQO1rH5TH8S6Ghk38uEVdVW9k6mNqG210aNBQ11TRzK%2Bu5FVASjFywKwH9id%2B4AfgLr6usuOJ4E68BG4om5Rw5G1oJ4vAevAsSCvbju7TYwV1PbFc7gLfxxYH0op%2FQJOAktdRB3gNvCoCzcfXKcLtwRMpJQ6JYCU0hvgkHoipqkAn4BnKaVVgMwREB6Bm%2Bp9YCJ2tAa8SiktbulKOdMisMgAiAGag3i2QZ2JG7WFdvYf6TlAj9CDwBSbt2IWKOckbeAe8ANoppRWBp26Zf94MVD4f2TxGzyXVgXKldOBAAAAAElFTkSuQmCC)](https://www.gnu.org/licenses/gpl-3.0)
 [![Tip jar](https://img.shields.io/badge/%24%20tip%20jar-PayPal-253B80)](https://paypal.me/tobiaska)
 
 
-A weather watchface for Pebble inspired by ForecasWatch, with a 24-hour forecast, rain radar, and a 3-week calendar.
+A weather watchface for Pebble inspired by ForecasWatch2, with a 24-hour forecast, rain radar, and a 3-week calendar.
 
 ## Screenshots
 
@@ -52,6 +52,18 @@ A weather watchface for Pebble inspired by ForecasWatch, with a 24-hour forecast
 **Customization**
 * Customize time font and color
 
+## Forecast graph vs. rain radar
+
+Two things that both involve rain over time, but answer different questions:
+
+- **Forecast graph** — the hourly prediction. Looking up to 24 hours ahead, it shows the
+  chance of rain each hour. It's a model forecast, good for *"will it rain this afternoon?"*
+- **Rain radar** — short-term, based on actual radar measurements moving toward you. It's
+  basically a rain radar, but drawn as bars instead of a map: it takes your exact location
+  and turns the next 2 hours into a simple bar graph — each bar is one 5-minute frame and its
+  height is the rain amount — so you instantly see when (and how much) rain reaches your spot.
+  Good for *"is it about to rain on me right now?"*
+
 ## Platforms
 
 Pebble Classic, Pebble Steel, Pebble Time, Pebble Time Steel, Pebble 2, and Pebble Time 2 are supported.
@@ -61,7 +73,7 @@ Pebble Classic, Pebble Steel, Pebble Time, Pebble Time Steel, Pebble 2, and Pebb
 ### Pebble Appstore
 
 - RePebble: https://apps.repebble.com/6a35bd1472de6e0008e7d156
-- Rebble: https://apps.rebble.io/en_US/application/6a35bd1472de6e0008e7d156
+- Rebble: https://apps.rebble.io/en_US/application/6a3645239d979d000abc99db
 
 If you're using the modern Pebble app, the RePebble listing should be the simplest install path. If you prefer the Rebble flow, follow https://help.rebble.io/setup to set up your Pebble app first. The RePebble store uses Rebble's backend ([blog](https://ericmigi.com/blog/re-introducing-the-pebble-appstore)), so the they're effectively the same catalog through a different entry point.
 

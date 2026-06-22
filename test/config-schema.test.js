@@ -42,6 +42,16 @@ test('color defaults are ints', () => {
   assert.deepEqual(colorTypeKeys, ['colorSaturday','colorSunday','colorTime','colorToday','colorUSFederal']);
 });
 
+test('B/W bar-scale hints are staticText, gated to non-color + the picker condition', () => {
+  const hints = items.filter((i) => i.type === 'staticText' && i.showWhen && i.showWhen.all);
+  const isBwGated = (h, cond) =>
+    JSON.stringify(h.showWhen.all) === JSON.stringify([{ not: { env: 'color' } }, cond]);
+  assert.ok(hints.some((h) => isBwGated(h, { key: 'barSource', eq: 'rain' })), 'forecast B/W hint missing');
+  assert.ok(hints.some((h) => isBwGated(h, { key: 'radarProvider', ne: 'disabled' })), 'radar B/W hint missing');
+  // No messageKey, so they never serialize into the settings blob.
+  hints.forEach((h) => assert.equal(h.messageKey, undefined));
+});
+
 test('COLOR-capability + showWhen wiring', () => {
   ['rainBarColor','radarColor','colorTime'].forEach((k) => assert.ok(byKey(k).capabilities.indexOf('COLOR') >= 0));
   assert.deepEqual(byKey('secondaryLineFill').showWhen, { key: 'secondaryLine', eq: 'precip_prob' });

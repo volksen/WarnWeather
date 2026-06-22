@@ -25,7 +25,7 @@
   .cardHdr { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 15px 16px; background: transparent; border: none; cursor: default; font: inherit; text-align: left; }
   .cardHdr.coll { cursor: pointer; }
   .cardHdr .ttl { font-size: 11.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: #7E8896; }
-  .cardHdr .chev { color: #58A6FF; font-size: 11px; font-weight: 700; }
+  .cardHdr .chev { color: #58A6FF; font-size: 16px; font-weight: 700; line-height: 1; }
   .intro { padding: 2px 16px 12px; font-size: 12.5px; color: #8A92A0; line-height: 1.55; }
   .intro a { color: #58A6FF; }
   .row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.055); }
@@ -37,6 +37,15 @@
   .row .hint a { color: #58A6FF; }
   .row .lft { min-width: 0; flex: 1; }
   .row .rgt { flex: none; }
+  /* free-form text rendered verbatim from a staticText schema item */
+  .static { padding: 14px 16px; font-size: 13.5px; color: #C2C8D2; line-height: 1.5; border-bottom: 1px solid rgba(255,255,255,0.055); }
+  .static a { color: #58A6FF; }
+  /* inline data block attached to a control (e.g. last-fetch under Force weather fetch) */
+  .blockrow { padding: 12px 16px 14px; font-size: 12.5px; color: #8A92A0; line-height: 1.55; border-bottom: 1px solid rgba(255,255,255,0.055); }
+  .blockrow a { color: #58A6FF; }
+  .blockrow b { color: #A6AEBB; font-weight: 700; }
+  /* version stamp at the very bottom of the scroll body */
+  .version { text-align: center; color: #5A6473; font-size: 11.5px; font-weight: 600; letter-spacing: .03em; padding: 8px 0 4px; }
   .preview { padding: 0 14px 12px; }
   .screen { background: #000; border: 1px solid rgba(255,255,255,0.13); border-radius: 10px; overflow: hidden; }
   .screen svg { display: block; width: 100%; }

@@ -10,7 +10,11 @@ var COLOR_LEGEND = 'Bar height grows with the rain rate; the fill steps up throu
   + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:8px;border-radius:2px;background:#FFFF00;margin-bottom:3px;"></span>2</span>'
   + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:8px;border-radius:2px;background:#FF5555;margin-bottom:3px;"></span>10+</span>'
   + '</span><br><span style="color:#6E7787;">White mode draws one solid bar instead.</span>';
-
+// B/W watches hide the color picker (no colors to choose), so this stands in for COLOR_LEGEND
+// there: same mm/h scale, but the chips are ascending white bars — height is the only encoding.
+var BW_LEGEND = 'Bar height grows with the rain rate (mm/h); on this watch it draws as one solid white bar:' + '<span style="display:inline-flex;gap:7px;margin-top:6px;align-items:flex-end;">' + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:2px;border-radius:2px;background:#FFFFFF;margin-bottom:3px;"></span>0</span>' + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:4px;border-radius:2px;background:#FFFFFF;margin-bottom:3px;"></span>0.1</span>' + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:7px;border-radius:2px;background:#FFFFFF;margin-bottom:3px;"></span>0.5</span>' + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:11px;border-radius:2px;background:#FFFFFF;margin-bottom:3px;"></span>2</span>' + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:15px;border-radius:2px;background:#FFFFFF;margin-bottom:3px;"></span>10+</span>' + '</span>';
+// Shown only on B/W (the COLOR_LEGEND-bearing picker is hidden there). Each also gates on its
+// section's own enable condition, so the note tracks the picker it replaces.
 module.exports = {
   appName: 'WarnWeather',
   versionLabel: versionLabel,
@@ -47,7 +51,20 @@ module.exports = {
           hintByValue: { low: 'Tops out at 30 km/h (19 mph) …', mid: 'Tops out at 50 km/h (31 mph) …', high: 'Tops out at 70 km/h (43 mph) …' },
           options: [['Low','low'],['Mid','mid'],['High','high']], showWhen: { key: 'secondaryLine', eq: 'wind' } },
         { type: 'segmented', messageKey: 'barSource', label: 'Bars', defaultValue: 'rain', options: [['Rain','rain'],['Off','off']] },
-        { type: 'segmented', messageKey: 'rainBarColor', label: 'Bar color', defaultValue: 'multicolor', hint: COLOR_LEGEND, capabilities: ['COLOR'], options: [['Multicolor','multicolor'],['White','white']], showWhen: { key: 'barSource', eq: 'rain' } },
+          {
+            type: 'segmented',
+            messageKey: 'rainBarColor',
+            label: 'Bar color',
+            defaultValue: 'multicolor',
+            hint: COLOR_LEGEND,
+            capabilities: ['COLOR'],
+            options: [['Multicolor', 'multicolor'], ['White', 'white']],
+            showWhen: {key: 'barSource', eq: 'rain'}
+          }, {
+            type: 'staticText',
+            text: BW_LEGEND,
+            showWhen: {all: [{not: {env: 'color'}}, {key: 'barSource', eq: 'rain'}]}
+          },
         { type: 'toggle', messageKey: 'dayNightShading', label: 'Day / night shading', defaultValue: true, hint: 'Show hatch shading between sunset and sunrise to distinguish day and night on the forecast graph.' }
       ] }
     ] },
@@ -55,8 +72,26 @@ module.exports = {
       { title: 'Rain radar', block: 'radarPreview', caption: 'Solid = at you · Outline = within 2 km',
         intro: 'Rain radar appears as a second screen revealed with a wrist flick, and only when radar data is available.<br>Unlike the forecast graph\'s hourly prediction, the radar is short-term and based on actual radar measurements moving toward you. It turns the next 2 hours into a bar graph, each bar one 5-minute frame whose height is the rain amount. Solid bars are rain at your exact location; the hatched outline behind them is the strongest rain anywhere within 2 km — an early warning that rain is nearby even when it isn\'t directly overhead yet.',
         items: [
-        { type: 'segmented', messageKey: 'radarProvider', label: 'Radar provider', defaultValue: 'disabled', options: [['DWD','dwd'],['Off','disabled']] },
-        { type: 'segmented', messageKey: 'radarColor', label: 'Radar color', defaultValue: 'multicolor', hint: COLOR_LEGEND, capabilities: ['COLOR'], options: [['Multicolor','multicolor'],['White','white']], showWhen: { key: 'radarProvider', ne: 'disabled' } }
+          {
+            type: 'segmented',
+            messageKey: 'radarProvider',
+            label: 'Radar provider',
+            defaultValue: 'disabled',
+            options: [['DWD', 'dwd'], ['Off', 'disabled']]
+          }, {
+            type: 'segmented',
+            messageKey: 'radarColor',
+            label: 'Radar color',
+            defaultValue: 'multicolor',
+            hint: COLOR_LEGEND,
+            capabilities: ['COLOR'],
+            options: [['Multicolor', 'multicolor'], ['White', 'white']],
+            showWhen: {key: 'radarProvider', ne: 'disabled'}
+          }, {
+            type: 'staticText',
+            text: BW_LEGEND,
+            showWhen: {all: [{not: {env: 'color'}}, {key: 'radarProvider', ne: 'disabled'}]}
+          }
       ] }
     ] },
     { id: 'watch', label: 'Watch', sections: [
@@ -83,10 +118,18 @@ module.exports = {
         { type: 'toggle', messageKey: 'vibe', label: 'Vibrate on bluetooth disconnect', defaultValue: false },
         { type: 'select', messageKey: 'btIcons', label: 'Show icon for bluetooth', defaultValue: 'both', options: [['Disconnected','disconnected'],['Connected','connected'],['Both','both'],['None','none']] },
         { type: 'toggle', messageKey: 'telemetryEnabled', label: 'Share anonymous telemetry', defaultValue: true,
-          hint: '<span style="color:#9aa0a6;font-size:0.82em;line-height:1.35;">Share privacy-respecting weather telemetry to improve reliability and understand usage patterns. Learn more about what gets sent in the <a href="https://github.com/Toasbi/WarnWeather#telemetry">Telemetry section</a>.</span>' }
-      ] },
-      { title: 'Advanced', collapsible: true, block: 'lastFetch', items: [
-        { type: 'toggle', messageKey: 'fetch', label: 'Force weather fetch', defaultValue: false, hint: 'Re-fetch the weather the moment you save.' },
+          hint: 'Share privacy-respecting weather telemetry to improve reliability and understand usage patterns. Learn more about what gets sent in the <a href="https://github.com/Toasbi/WarnWeather#telemetry">Telemetry section</a>.'
+        }
+        ]
+      }, {
+          title: 'Advanced', collapsible: true, items: [{
+            type: 'toggle',
+            messageKey: 'fetch',
+            label: 'Force weather fetch',
+            defaultValue: false,
+            hint: 'Re-fetch the weather the moment you save.',
+            block: 'lastFetch'
+          },
         { type: 'toggle', messageKey: 'devStatsEnabled', label: 'Enable connection stats', defaultValue: false, hint: 'Locally records connection events sent to the watch. Events older than 7 days are deleted.' },
         { type: 'toggle', messageKey: 'devStatsClear', label: 'Clear connection stats', defaultValue: false, showWhen: { key: 'devStatsEnabled', eq: true } }
       ] },

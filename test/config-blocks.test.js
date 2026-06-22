@@ -12,6 +12,23 @@ test('radarPreview: off message vs SVG', () => {
   assert.ok(B.radarPreview({ radarProvider: 'disabled', radarColor: 'multicolor' }, { color: true }).indexOf('Radar off') >= 0);
   assert.ok(/^<svg/.test(B.radarPreview({ radarProvider: 'dwd', radarColor: 'white' }, { color: true })));
 });
+// A multicolor radar band fill (e.g. #00FF00) appears on a color watch but never on B/W,
+// where the bars are always solid white regardless of the (hidden) radarColor setting.
+const GREEN_BAND = 'fill="#00FF00"';
+test('radarPreview forces white bars on B/W even when setting says multicolor', () => {
+  const color = B.radarPreview({ radarProvider: 'dwd', radarColor: 'multicolor' }, { color: true });
+  const bw    = B.radarPreview({ radarProvider: 'dwd', radarColor: 'multicolor' }, { color: false });
+  assert.ok(color.indexOf(GREEN_BAND) >= 0, 'color watch keeps multicolor bands');
+  assert.equal(bw.indexOf(GREEN_BAND), -1, 'B/W watch draws no color bands');
+  assert.ok(bw.indexOf('fill="#FFFFFF"') >= 0, 'B/W watch draws white bars');
+});
+test('forecastPreview forces white rain bars on B/W even when setting says multicolor', () => {
+  const state = { dayNightShading: true, barSource: 'rain', rainBarColor: 'multicolor', secondaryLine: 'off' };
+  const color = B.forecastPreview(state, { color: true });
+  const bw    = B.forecastPreview(state, { color: false });
+  assert.ok(color.indexOf(GREEN_BAND) >= 0, 'color watch keeps multicolor rain bands');
+  assert.equal(bw.indexOf(GREEN_BAND), -1, 'B/W watch draws no color rain bands');
+});
 test('devStats: table only, no clear button; empty when disabled', () => {
   const ds = B.devStats({ devStatsEnabled: true }, {}, { devStats: JSON.stringify([{ t: Date.now(), k: 'weather', ok: 1, c: { forecast: 1 } }]) });
   assert.ok(ds.indexOf('Daily summary') >= 0);

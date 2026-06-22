@@ -82,9 +82,11 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
         }
         e += '<line x1="' + PX0 + '" y1="' + PB + '" x2="' + PX1 + '" y2="' + PB + '" stroke="rgba(255,255,255,0.20)" stroke-width="0.7"></line>';
         if (state.barSource === 'rain') {
+            // On B/W platforms the color picker is hidden, so honor the hardware: always white.
+            var rainWhite = state.rainBarColor === 'white' || (env && !env.color);
             var bw = 7, cw = (PX1 - PX0) / TH;
             for (var i = 0; i < rain.length; i++) {
-                e += rainBars(rain[i], PX0 + (i + 0.5) * cw - bw / 2, bw, PB, maxBar, state.rainBarColor === 'white');
+                e += rainBars(rain[i], PX0 + (i + 0.5) * cw - bw / 2, bw, PB, maxBar, rainWhite);
             }
         }
         if (state.secondaryLine === 'precip_prob') {
@@ -132,13 +134,15 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
         }
         e += txt(PX0, topY - 3, 7, '#7C828D', 'start', 600, 'now') + txt(PX0 + 12 * step, topY - 3, 7, '#7C828D', 'middle', 600, '+1h') + txt(PX1, topY - 3, 7, '#7C828D', 'end', 600, '+2h');
         e += '<line x1="' + PX0 + '" y1="' + PB + '" x2="' + PX1 + '" y2="' + PB + '" stroke="rgba(255,255,255,0.18)" stroke-width="0.7"></line>';
+        // On B/W platforms the color picker is hidden, so honor the hardware: always white.
+        var radarWhite = state.radarColor === 'white' || (env && !env.color);
         for (var i = 0; i < n; i++) {
             var x = PX0 + i * step + (step - bw) / 2;
             var nH = rainPermille(local[i] + add[i]);
             if (nH > 0) {
                 e += '<rect x="' + x + '" y="' + (PB - nH * plotH) + '" width="' + bw + '" height="' + (nH * plotH) + '" fill="none" stroke="rgba(255,255,255,0.30)" stroke-width="0.7"></rect>';
             }
-            e += rainBars(local[i], x, bw, PB, plotH, state.radarColor === 'white');
+            e += rainBars(local[i], x, bw, PB, plotH, radarWhite);
         }
         return '<svg viewBox="0 0 200 120" style="aspect-ratio:200/120">' + e + '</svg>';
     }
@@ -280,6 +284,7 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
         var shouldShowLastAttempt;
         var attemptText;
 
+        html += '<b>Last fetch:</b> ';
         if (lastFetchSuccess !== null) {
             date = new Date(lastFetchSuccess.time);
             lastFetchSuccessTime = date.getTime();

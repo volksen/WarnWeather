@@ -146,9 +146,11 @@ var PConf = (typeof PConf !== 'undefined') ? PConf : {};
           var ctxNow = ctx();
           for (var ii = 0; ii < sec.items.length; ii++) {
             var item = sec.items[ii];
-            // staticText: emit verbatim, no messageKey chrome
+            // staticText: emit verbatim text, wrapped for consistent padding
+            // (still honor showWhen so a static note can be platform/state-gated)
             if (item.type === 'staticText') {
-              body += item.text || '';
+              if (!PConf.showWhen.isVisible(item, ctxNow)) { continue; }
+              body += '<div class="static">' + (item.text || '') + '</div>';
               staticTextCount++;
               continue;
             }
@@ -156,6 +158,12 @@ var PConf = (typeof PConf !== 'undefined') ? PConf : {};
             if (!PConf.showWhen.isVisible(item, ctxNow)) { continue; }
             visibleCount++;
             body += rowEl(item);
+            // item-level block: render its data inline, directly under this control
+            if (item.block) {
+              var ibfn = PConf.blocks.get(item.block);
+              var ibHtml = ibfn ? ibfn(S, ENV, USERDATA) : '';
+              if (ibHtml) { body += '<div class="blockrow">' + ibHtml + '</div>'; }
+            }
           }
 
           // block injection

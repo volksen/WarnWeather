@@ -10,7 +10,7 @@ const byKey = (k) => items.filter((i) => i.messageKey === k)[0];
 const EXPECTED_KEYS = [
   'timeLeadingZero','timeShowAmPm','axisTimeFormat','timeFont','colorTime',
   'weekStartDay','firstWeek','colorToday','colorSunday','colorSaturday','colorUSFederal',
-  'fetchIntervalMin','sleepNightEnabled','sleepStartHour','sleepEndHour','fetch','location',
+  'fetchIntervalMin','sleepNightEnabled','sleepStartHour','sleepEndHour','fetch','locationMode','location',
   'temperatureUnits','dayNightShading','secondaryLine','secondaryLineFill','windScale',
   'barSource','rainBarColor','provider','owmApiKey','radarProvider','radarColor',
   'showQt','vibe','btIcons','telemetryEnabled','devStatsEnabled','devStatsClear'
@@ -20,6 +20,14 @@ test('every Clay messageKey present exactly once', () => {
   EXPECTED_KEYS.forEach((k) => assert.ok(byKey(k), 'missing messageKey: ' + k));
   const seen = items.filter((i) => i.messageKey).map((i) => i.messageKey);
   assert.equal(seen.length, EXPECTED_KEYS.length, 'unexpected/duplicate keys: ' + seen.join(','));
+});
+
+test('location is a GPS/Manual picker; the text field is gated to Manual', () => {
+  const mode = byKey('locationMode');
+  assert.equal(mode.type, 'segmented');
+  assert.equal(mode.defaultValue, 'gps');
+  assert.deepEqual(mode.options.map((o) => o[1]), ['gps', 'manual']);
+  assert.deepEqual(byKey('location').showWhen, { key: 'locationMode', eq: 'manual' });
 });
 
 test('providers include openmeteo as 4th selectable option', () => {

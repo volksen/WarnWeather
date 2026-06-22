@@ -7,19 +7,30 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
 
 (function () {
     /**
-     * onLoad: reset transient toggles so they never persist across open/close.
+     * onLoad: reset transient toggles so they never persist across open/close, and
+     * mirror the stored location into the GPS/Manual picker (locationMode has no
+     * watch-side meaning — an empty vs set location is the real GPS/manual contract,
+     * see index.js). Deriving it here makes an existing manual location preselect
+     * Manual instead of defaulting to GPS, which would silently clear it on save.
      * @param {{ get: function, set: function, getInitial: function }} ctx
      */
     function onLoad(ctx) {
         ctx.set('fetch', false);
         ctx.set('devStatsClear', false);
+        ctx.set('locationMode', ctx.get('location') ? 'manual' : 'gps');
     }
 
     /**
-     * onSubmit: force a re-fetch when any of the provider identity fields changed.
+     * onSubmit: keep the location consistent with the picker, then force a re-fetch when
+     * any provider-identity field changed. GPS mode must leave location empty so the
+     * watch falls back to GPS; clearing it before the change check also means flipping
+     * Manual to GPS is correctly detected as a location change.
      * @param {{ get: function, set: function, getInitial: function }} ctx
      */
     function onSubmit(ctx) {
+        if (ctx.get('locationMode') === 'gps') {
+            ctx.set('location', '');
+        }
         if (
             ctx.get('provider') !== ctx.getInitial('provider') ||
             ctx.get('owmApiKey') !== ctx.getInitial('owmApiKey') ||

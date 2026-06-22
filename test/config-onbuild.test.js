@@ -13,6 +13,34 @@ test('onLoad resets transient toggles to false', function () {
     assert.equal(store.devStatsClear, false);
 });
 
+test('onLoad derives locationMode from the stored location', function () {
+    var manual = { location: 'Berlin' };
+    OB.onLoad({ get: function (k) { return manual[k]; }, set: function (k, v) { manual[k] = v; }, getInitial: function () {} });
+    assert.equal(manual.locationMode, 'manual');
+
+    var gps = { location: '' };
+    OB.onLoad({ get: function (k) { return gps[k]; }, set: function (k, v) { gps[k] = v; }, getInitial: function () {} });
+    assert.equal(gps.locationMode, 'gps');
+});
+
+test('onSubmit clears location in GPS mode and that change forces a refetch', function () {
+    var store = { fetch: false, provider: 'wunderground', owmApiKey: '', locationMode: 'gps', location: 'Berlin' };
+    var initial = { provider: 'wunderground', owmApiKey: '', location: 'Berlin' };
+    var ctx = { get: function (k) { return store[k]; }, set: function (k, v) { store[k] = v; }, getInitial: function (k) { return initial[k]; } };
+    OB.onSubmit(ctx);
+    assert.equal(store.location, '');
+    assert.equal(store.fetch, true);
+});
+
+test('onSubmit keeps the manual location and does not refetch when unchanged', function () {
+    var store = { fetch: false, provider: 'wunderground', owmApiKey: '', locationMode: 'manual', location: 'Berlin' };
+    var initial = { provider: 'wunderground', owmApiKey: '', location: 'Berlin' };
+    var ctx = { get: function (k) { return store[k]; }, set: function (k, v) { store[k] = v; }, getInitial: function (k) { return initial[k]; } };
+    OB.onSubmit(ctx);
+    assert.equal(store.location, 'Berlin');
+    assert.equal(store.fetch, false);
+});
+
 test('onSubmit sets fetch=true when provider changes', function () {
     var store = { fetch: false, provider: 'openmeteo', owmApiKey: '', location: 'Berlin' };
     var initial = { provider: 'wunderground', owmApiKey: '', location: 'Berlin' };

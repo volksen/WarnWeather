@@ -89,6 +89,13 @@ OpenMeteoProvider.prototype._super = WeatherProvider;
  * units and unixtime so the mapper does zero conversion, and forecast_days=2
  * (48 buckets) so a current-hour-anchored 24h window always fits.
  *
+ * Pins models=ecmwf_ifs025 rather than the default best_match: best_match
+ * blends models and sources precipitation_probability separately from the
+ * deterministic precipitation amount, so high-probability hours frequently
+ * report 0.0 mm — which makes the (amount-driven) rain bars vanish. ECMWF IFS
+ * is a single coherent global model whose amount tracks its probability in
+ * every region tested, so the bars show wherever the watch is used.
+ *
  * @param {number} lat Latitude in decimal degrees.
  * @param {number} lon Longitude in decimal degrees.
  * @returns {string} Fully-formed request URL.
@@ -104,6 +111,7 @@ function buildForecastUrl(lat, lon) {
         + '&precipitation_unit=mm'
         + '&timeformat=unixtime'
         + '&timezone=GMT'
+        + '&models=ecmwf_ifs025'
         + '&forecast_days=2';
 }
 
@@ -141,5 +149,6 @@ OpenMeteoProvider.prototype.withProviderData = function(lat, lon, force, onSucce
 
 module.exports = {
     mapResponse: mapResponse,
+    buildForecastUrl: buildForecastUrl,
     OpenMeteoProvider: OpenMeteoProvider
 };

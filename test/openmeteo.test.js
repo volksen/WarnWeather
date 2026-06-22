@@ -76,6 +76,15 @@ test('mapResponse returns null on malformed input', () => {
   assert.equal(mapResponse(null, BASE), null);
 });
 
+test('buildForecastUrl pins the ecmwf_ifs025 model for region-robust precipitation', () => {
+  // best_match blends models, decoupling precipitation_probability (the line)
+  // from precipitation amount (the bars) so rain bars vanish at high probability.
+  // ecmwf_ifs025 is a single coherent global model whose amount tracks its
+  // probability everywhere, so the bars appear wherever the watch is used.
+  const url = openmeteo.buildForecastUrl(52.52, 13.41);
+  assert.match(url, /&models=ecmwf_ifs025(&|$)/);
+});
+
 const WeatherProvider = require('../src/pkjs/weather/provider.js');
 const OpenMeteoProvider = openmeteo.OpenMeteoProvider;
 

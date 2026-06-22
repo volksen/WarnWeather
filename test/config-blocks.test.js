@@ -46,6 +46,15 @@ test('lastFetch formats success / Never / failed-attempt-with-error', () => {
   });
   assert.ok(failed.indexOf('geocode') >= 0 && failed.indexOf('401') >= 0, 'shows error stage:code');
 });
+test('forecastPreview wind: gust dashed path drops out when gustLine is off', () => {
+  const base = { dayNightShading: false, barSource: 'off', secondaryLine: 'wind', windScale: 'mid' };
+  const withGust = B.forecastPreview(Object.assign({}, base, { gustLine: true }), { color: true });
+  const noGust   = B.forecastPreview(Object.assign({}, base, { gustLine: false }), { color: true });
+  assert.ok(withGust.indexOf('stroke-dasharray="5 2 1 2 1 2"') > -1, 'gust dash present when on');
+  assert.equal(noGust.indexOf('stroke-dasharray="5 2 1 2 1 2"'), -1, 'gust dash absent when off');
+  // Solid wind line stays in both.
+  assert.ok(noGust.indexOf('stroke="#FFFF55"') > -1, 'wind line still drawn when gust off');
+});
 test('registers all four into PConf.blocks', () => {
   ['forecastPreview','radarPreview','devStats','lastFetch'].forEach((id) => assert.equal(typeof PConf.blocks.get(id), 'function'));
 });

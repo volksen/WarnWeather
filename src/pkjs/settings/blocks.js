@@ -99,8 +99,10 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
         } else if (state.secondaryLine === 'wind') {
             var mx = state.windScale === 'low' ? 30 : (state.windScale === 'high' ? 70 : 50);
             var wp = wind.map(function (w, i) { return [X(i), PB - Math.min(w, mx) / mx * (PB - PT - 3)]; });
-            var gp = wind.map(function (w, i) { return [X(i), PB - Math.min(w + 9, mx) / mx * (PB - PT - 3)]; });
-            e += '<path d="' + smooth(gp) + '" fill="none" stroke="#FFFFAA" stroke-width="1.4" stroke-dasharray="5 2 1 2 1 2" stroke-linecap="round"></path>';
+            if (state.gustLine !== false) {
+                var gp = wind.map(function (w, i) { return [X(i), PB - Math.min(w + 9, mx) / mx * (PB - PT - 3)]; });
+                e += '<path d="' + smooth(gp) + '" fill="none" stroke="#FFFFAA" stroke-width="1.4" stroke-dasharray="5 2 1 2 1 2" stroke-linecap="round"></path>';
+            }
             e += '<path d="' + smooth(wp) + '" fill="none" stroke="#FFFF55" stroke-width="1.6"></path>';
         }
         e += '<path d="' + smooth(temps.map(function (t, i) { return [X(i), yT(t)]; })) + '" fill="none" stroke="#FF0055" stroke-width="2" stroke-linecap="round"></path>';

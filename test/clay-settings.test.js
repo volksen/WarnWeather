@@ -51,6 +51,13 @@ test('getDefaults includes windScale defaulting to mid', () => {
   assert.equal(claySettings.getDefaults(COLORS).windScale, 'mid');
 });
 
+test('getDefaults includes gustLine defaulting to true', () => {
+  installFakeStorage();
+  delete require.cache[require.resolve('../src/pkjs/clay-settings')];
+  const claySettings = require('../src/pkjs/clay-settings');
+  assert.equal(claySettings.getDefaults(COLORS).gustLine, true);
+});
+
 test('seedDefaults enables night pause and Leco font by default', () => {
   installFakeStorage();
   const claySettings = require('../src/pkjs/clay-settings');

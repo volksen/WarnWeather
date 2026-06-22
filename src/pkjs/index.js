@@ -650,7 +650,8 @@ function fetch(provider, force) {
 function renderSignature(settings) {
     if (!settings) { return ''; }
     return [settings.secondaryLine, settings.secondaryLineFill, settings.barSource,
-            settings.rainBarColor, settings.radarColor, settings.windScale].join('|');
+            settings.rainBarColor, settings.radarColor, settings.windScale,
+            settings.gustLine].join('|');
 }
 
 /**

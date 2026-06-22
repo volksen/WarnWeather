@@ -9,10 +9,10 @@ var COLOR_LEGEND = 'Bar height grows with the rain rate; the fill steps up throu
   + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:8px;border-radius:2px;background:#00FF00;margin-bottom:3px;"></span>0.5</span>'
   + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:8px;border-radius:2px;background:#FFFF00;margin-bottom:3px;"></span>2</span>'
   + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:8px;border-radius:2px;background:#FF5555;margin-bottom:3px;"></span>10+</span>'
-  + '</span><br><span style="color:#6E7787;">White mode draws one solid bar instead.</span>';
+  + '</span><br><span style="color:#6E7787;">The scale is compressed, not linear — each color marks roughly a five-fold jump in rate (0.1, 0.5, 2, 10 mm/h) and a full bar is a 40 mm/h downpour, so light drizzle still shows while heavy rain has room to climb. White mode draws one solid bar instead.</span>';
 // B/W watches hide the color picker (no colors to choose), so this stands in for COLOR_LEGEND
 // there: text-only, since height is the only encoding (no color steps to show).
-var BW_LEGEND = 'Bar height grows with the rain rate (mm/h) — taller bars mean heavier rain. On this watch each bar draws as one solid white bar.';
+var BW_LEGEND = 'Bar height grows with the rain rate (mm/h) — taller bars mean heavier rain. The scale is compressed, not linear: each step up the bar is roughly a five-fold jump in rate (0.1, 0.5, 2, 10) and a full bar is a 40 mm/h downpour, so light drizzle stays visible while heavy rain has room to climb.';
 module.exports = {
   appName: 'WarnWeather',
   versionLabel: versionLabel + ' <a href="https://github.com/Toasbi/WarnWeather">GitHub source</a>',
@@ -44,8 +44,7 @@ module.exports = {
           type: 'segmented',
           messageKey: 'temperatureUnits',
           label: 'Temperature units',
-          defaultValue: 'f',
-          options: [['°F', 'f'], ['°C', 'c']],
+          defaultValue: 'f',          options: [['°F', 'f'], ['°C', 'c']],
           block: 'forecastPreview'
         },
         { type: 'segmented', messageKey: 'secondaryLine', label: 'Secondary line', defaultValue: 'precip_prob',

@@ -13,11 +13,9 @@ var COLOR_LEGEND = 'Bar height grows with the rain rate; the fill steps up throu
 // B/W watches hide the color picker (no colors to choose), so this stands in for COLOR_LEGEND
 // there: same mm/h scale, but the chips are ascending white bars — height is the only encoding.
 var BW_LEGEND = 'Bar height grows with the rain rate (mm/h); on this watch it draws as one solid white bar:' + '<span style="display:inline-flex;gap:7px;margin-top:6px;align-items:flex-end;">' + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:2px;border-radius:2px;background:#FFFFFF;margin-bottom:3px;"></span>0</span>' + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:4px;border-radius:2px;background:#FFFFFF;margin-bottom:3px;"></span>0.1</span>' + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:7px;border-radius:2px;background:#FFFFFF;margin-bottom:3px;"></span>0.5</span>' + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:11px;border-radius:2px;background:#FFFFFF;margin-bottom:3px;"></span>2</span>' + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:15px;border-radius:2px;background:#FFFFFF;margin-bottom:3px;"></span>10+</span>' + '</span>';
-// Shown only on B/W (the COLOR_LEGEND-bearing picker is hidden there). Each also gates on its
-// section's own enable condition, so the note tracks the picker it replaces.
 module.exports = {
   appName: 'WarnWeather',
-  versionLabel: versionLabel,
+  versionLabel: versionLabel + ' <a href="https://github.com/Toasbi/WarnWeather">GitHub source</a>',
   tabs: [
     { id: 'weather', label: 'Weather', sections: [
       { title: 'Weather', items: [
@@ -36,15 +34,26 @@ module.exports = {
           hint: 'Stop fetching weather between the hours below to save battery.' },
         { type: 'select', messageKey: 'sleepStartHour', label: 'From', defaultValue: '22', options: HOURS, showWhen: { key: 'sleepNightEnabled', eq: true } },
         { type: 'select', messageKey: 'sleepEndHour', label: 'To', defaultValue: '7', options: HOURS, showWhen: { key: 'sleepNightEnabled', eq: true } }
-      ] }
-    ] },
-    { id: 'forecast', label: 'Forecast', sections: [
-      { title: 'Forecast', block: 'forecastPreview', caption: 'Temp · Precip % · Rain bars',
-        intro: 'The forecast graph is the hourly prediction — looking up to 24 hours ahead, it shows temperature plus the chance of rain each hour. It\'s a model forecast, good for "will it rain this afternoon?" For "is it about to rain on me right now?", see Rain radar below.',
-        items: [
-        { type: 'segmented', messageKey: 'temperatureUnits', label: 'Temperature units', defaultValue: 'f', options: [['°F','f'],['°C','c']] },
+      ] }]
+    }, {
+      id: 'forecast', label: 'Forecast', sections: [{
+        title: 'Forecast',
+        caption: 'Temp · Precip % · Rain bars',
+        intro: 'The forecast graph is the hourly prediction — looking up to 24 hours ahead, it shows temperature plus the chance of rain each hour. ' + 'It\'s a model forecast, good for "will it rain this afternoon?" For "is it about to rain on me right now?", check the Radar tab.',
+        items: [{
+          type: 'segmented',
+          messageKey: 'temperatureUnits',
+          label: 'Temperature units',
+          defaultValue: 'f',
+          options: [['°F', 'f'], ['°C', 'c']],
+          block: 'forecastPreview'
+        },
         { type: 'segmented', messageKey: 'secondaryLine', label: 'Secondary line', defaultValue: 'precip_prob',
-          hintByValue: { precip_prob: 'Chance of rain each hour — half-height = 50%, full-height = 100%.', wind: 'Wind speed, with a dotted gust line drawn above it.', off: 'Temperature only.' },
+          hintByValue: {
+            precip_prob: 'Chance of rain each hour<br>— half-height = 50% rain chance<br>— full-height = 100% rain chance',
+            wind: 'Wind speed + dotted gust line drawn above it.',
+            off: 'Temperature only.'
+          },
           options: [['Precip','precip_prob'],['Wind','wind'],['Off','off']] },
         { type: 'toggle', messageKey: 'secondaryLineFill', label: 'Fill area under line', defaultValue: true, hint: 'Shade the area beneath the curve.', showWhen: { key: 'secondaryLine', eq: 'precip_prob' } },
         { type: 'segmented', messageKey: 'windScale', label: 'Wind graph scale', defaultValue: 'mid',
@@ -70,7 +79,11 @@ module.exports = {
     ] },
     { id: 'radar', label: 'Radar', sections: [
       { title: 'Rain radar', block: 'radarPreview', caption: 'Solid = at you · Outline = within 2 km',
-        intro: 'Rain radar appears as a second screen revealed with a wrist flick, and only when radar data is available.<br>Unlike the forecast graph\'s hourly prediction, the radar is short-term and based on actual radar measurements moving toward you. It turns the next 2 hours into a bar graph, each bar one 5-minute frame whose height is the rain amount. Solid bars are rain at your exact location; the hatched outline behind them is the strongest rain anywhere within 2 km — an early warning that rain is nearby even when it isn\'t directly overhead yet.',
+        intro: 'Rain radar appears as a second screen revealed with a wrist flick, and only when radar data is available.<br>' +
+            'Unlike the forecast graph\'s hourly prediction, the radar is short-term and based on actual radar measurements moving toward you. ' +
+            'It turns the next 2 hours into a bar graph, each bar one 5-minute frame whose height is the rain amount. ' +
+            'Solid bars are rain at your exact location; the hatched outline behind them is the strongest rain anywhere ' +
+            'within 2 km — an early warning that rain is nearby even when it isn\'t directly overhead yet.',
         items: [
           {
             type: 'segmented',

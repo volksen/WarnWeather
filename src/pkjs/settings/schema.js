@@ -126,7 +126,7 @@ module.exports = {
     ] },
     { id: 'more', label: 'More', sections: [
       { title: 'Misc', items: [
-        { type: 'staticText', text: 'Contribute on <a href="https://github.com/Toasbi/WarnWeather">GitHub!</a>' },
+        { type: 'staticText', text: '<a href="https://github.com/Toasbi/WarnWeather/issues">Get Help</a>' },
         { type: 'toggle', messageKey: 'showQt', label: 'Show quiet time icon', defaultValue: true },
         { type: 'toggle', messageKey: 'vibe', label: 'Vibrate on bluetooth disconnect', defaultValue: false },
         { type: 'select', messageKey: 'btIcons', label: 'Show icon for bluetooth', defaultValue: 'both', options: [['Disconnected','disconnected'],['Connected','connected'],['Both','both'],['None','none']] },

@@ -121,16 +121,16 @@ var PConf = (typeof PConf !== 'undefined') ? PConf : {};
       // tabs from SCHEMA.tabs
       var tabsEl = document.getElementById('tabs');
       var tabHtml = '';
-      for (var ti = 0; ti < SCHEMA.tabs.length; ti++) {
-        var tab = SCHEMA.tabs[ti];
+      for (var tabi = 0; tabi < SCHEMA.tabs.length; tabi++) {
+        var tab = SCHEMA.tabs[tabi];
         tabHtml += '<button class="tab' + (activeTab === tab.id ? ' on' : '') + '" data-tab="' + tab.id + '">' + tab.label + '</button>';
       }
       tabsEl.innerHTML = tabHtml;
 
       // collect sections for active tab
       var bodyHtml = '';
-      for (var ti2 = 0; ti2 < SCHEMA.tabs.length; ti2++) {
-        var t = SCHEMA.tabs[ti2];
+      for (var seci = 0; seci < SCHEMA.tabs.length; seci++) {
+        var t = SCHEMA.tabs[seci];
         if (t.id !== activeTab) { continue; }
         for (var si = 0; si < t.sections.length; si++) {
           var sec = t.sections[si];
@@ -142,12 +142,14 @@ var PConf = (typeof PConf !== 'undefined') ? PConf : {};
 
           // render visible items
           var visibleCount = 0;
+          var staticTextCount = 0;
           var ctxNow = ctx();
           for (var ii = 0; ii < sec.items.length; ii++) {
             var item = sec.items[ii];
             // staticText: emit verbatim, no messageKey chrome
             if (item.type === 'staticText') {
               body += item.text || '';
+              staticTextCount++;
               continue;
             }
             // skip hidden items
@@ -164,8 +166,9 @@ var PConf = (typeof PConf !== 'undefined') ? PConf : {};
             body += blockHtml;
           }
 
-          // skip section card if empty (no intro, no visible items, block returned '')
-          if (!sec.intro && visibleCount === 0 && blockHtml === '') { continue; }
+          // skip section card if genuinely empty: no intro, no visible control items,
+          // no staticText content, and block returned ''
+          if (!sec.intro && visibleCount === 0 && staticTextCount === 0 && blockHtml === '') { continue; }
 
           // section header
           var isCollapsible = Boolean(sec.collapsible);

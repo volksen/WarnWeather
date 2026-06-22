@@ -16,16 +16,35 @@ set -euo pipefail
 # that dies partway only needs to re-capture, not rebuild. Delete
 # build/timelapse-pbw to force a full rebuild.
 #
-# Usage:   scripts/capture-timelapse.sh <version>
-# Example: scripts/capture-timelapse.sh v1.1.0
+# An optional platform list captures only those platforms (the .pbws are still
+# built once and stashed, so a later run for a deferred platform — e.g. the
+# slow-booting flint — reuses them and only re-captures). With no list, all
+# five are captured.
+#
+# Usage:   scripts/capture-timelapse.sh <version> [platform ...]
+# Example: scripts/capture-timelapse.sh v1.1.0                       # all five
+#          scripts/capture-timelapse.sh v1.1.0 emery basalt aplite diorite
+#          scripts/capture-timelapse.sh v1.1.0 flint                 # defer flint
 
 if [[ $# -lt 1 ]]; then
-  printf 'Usage: %s <version>\n' "$0" >&2
+  printf 'Usage: %s <version> [platform ...]\n' "$0" >&2
   exit 1
 fi
 
 version="$1"
-platforms=(emery basalt aplite diorite flint)
+shift
+all_platforms=(emery basalt aplite diorite flint)
+if [[ $# -gt 0 ]]; then
+  platforms=("$@")
+  for p in "${platforms[@]}"; do
+    case " ${all_platforms[*]} " in
+      *" $p "*) ;;
+      *) printf 'Unknown platform: %s (valid: %s)\n' "$p" "${all_platforms[*]}" >&2; exit 1 ;;
+    esac
+  done
+else
+  platforms=("${all_platforms[@]}")
+fi
 frames_root="screenshot/$version/timelapse/frames"
 pbw_dir="build/timelapse-pbw"
 
@@ -66,7 +85,9 @@ trap kill_emulators EXIT
 # install_with_retries <platform> <pbw> — reinstall onto the live emulator
 # (boots it on the first call per platform). On failure, force-reap the wedged
 # emulator and retry from a fresh boot. Sets REBOOTED=1 if it had to reap, so
-# the caller waits for a full boot rather than a quick settle.
+# the caller waits for a full boot rather than a quick settle. Returns non-zero
+# after 3 attempts so the caller can skip this platform rather than abort the
+# whole run.
 REBOOTED=0
 install_with_retries() {
   local platform="$1" pbw="$2" attempt
@@ -76,9 +97,9 @@ install_with_retries() {
       return 0
     fi
     if [[ $attempt -eq 3 ]]; then
-      printf 'ERROR: could not install on %s after 3 attempts; giving up\n' "$platform" >&2
+      printf 'ERROR: could not install on %s after 3 attempts; giving up on this platform\n' "$platform" >&2
       kill_emulators
-      exit 1
+      return 1
     fi
     printf 'Install attempt %d on %s failed, retrying...\n' "$attempt" "$platform" >&2
     kill_emulators
@@ -96,22 +117,39 @@ boot_wait() {
 # any forced reboot) waits for a full boot, later reinstalls settle briefly.
 need_boot=1
 
-# capture_one <platform> <pbw> <out.png> <tap?>
+# capture_one <platform> <pbw> <out.png> <tap?> — install, settle, optionally
+# tap, then grab the screenshot. `pebble screenshot` can time out even on a
+# booted emulator (the screenshot service wedges, esp. on the slow flint), so
+# retry the whole install+grab from a fresh boot rather than letting one timeout
+# abort the run. Returns non-zero after 3 attempts so the caller skips the rest
+# of this platform.
 capture_one() {
-  local platform="$1" pbw="$2" out="$3" tap="$4"
-  install_with_retries "$platform" "$pbw"
-  if [[ $need_boot -eq 1 || $REBOOTED -eq 1 ]]; then
-    boot_wait "$platform"
-  else
-    sleep 2
-  fi
-  need_boot=0
-  if [[ "$tap" == "tap" ]]; then
-    pebble emu-tap --emulator "$platform"   # calendar -> radar
-    sleep 1
-  fi
-  screenshot_bounded "$out" "$platform"
-  printf 'Saved %s\n' "$out"
+  local platform="$1" pbw="$2" out="$3" tap="$4" attempt
+  for attempt in 1 2 3; do
+    if ! install_with_retries "$platform" "$pbw"; then
+      return 1
+    fi
+    if [[ $need_boot -eq 1 || $REBOOTED -eq 1 ]]; then
+      boot_wait "$platform"
+    else
+      sleep 2
+    fi
+    need_boot=0
+    if [[ "$tap" == "tap" ]]; then
+      pebble emu-tap --emulator "$platform"   # calendar -> radar
+      sleep 1
+    fi
+    if screenshot_bounded "$out" "$platform"; then
+      printf 'Saved %s\n' "$out"
+      return 0
+    fi
+    printf 'Screenshot attempt %d on %s timed out, reaping and retrying...\n' "$attempt" "$platform" >&2
+    kill_emulators
+    need_boot=1
+    sleep 4
+  done
+  printf 'ERROR: screenshot kept timing out on %s after 3 attempts; skipping rest of this platform\n' "$platform" >&2
+  return 1
 }
 
 node scripts/gen-timelapse-fixtures.js
@@ -142,9 +180,11 @@ for fixture in "${a_fixtures[@]}" "${b_fixtures[@]}"; do
   cp build/warnweather-dev.pbw "$pbw_dir/$base.pbw"
 done
 
-# Capture phase: one platform at a time, reusing the live emulator across all of
-# that platform's frames; reap only when moving to the next platform.
-for platform in "${platforms[@]}"; do
+# capture_platform <platform> — capture every frame of one platform, reusing
+# the live emulator across all of them; reap only on entry/exit. Returns
+# non-zero if any frame gives up, so the caller can skip to the next platform.
+capture_platform() {
+  local platform="$1" fixture base nn
   printf '\n######## platform %s ########\n' "$platform"
   kill_emulators
   sleep 2
@@ -154,20 +194,49 @@ for platform in "${platforms[@]}"; do
   for fixture in "${a_fixtures[@]}"; do
     base="$(basename "$fixture" .json)"   # timelapse-a-00
     nn="${base##*-}"                      # 00
-    capture_one "$platform" "$pbw_dir/$base.pbw" "$frames_root/$platform/a_$nn.png" "no-tap"
+    capture_one "$platform" "$pbw_dir/$base.pbw" "$frames_root/$platform/a_$nn.png" "no-tap" || return 1
   done
 
   # Phase B: radar view (tap once after each reinstall).
   for fixture in "${b_fixtures[@]}"; do
     base="$(basename "$fixture" .json)"   # timelapse-b-00
     nn="${base##*-}"                      # 00
-    capture_one "$platform" "$pbw_dir/$base.pbw" "$frames_root/$platform/b_$nn.png" "tap"
+    capture_one "$platform" "$pbw_dir/$base.pbw" "$frames_root/$platform/b_$nn.png" "tap" || return 1
   done
 
   kill_emulators
+}
+
+# Capture phase: one platform at a time. A platform that can't be captured is
+# skipped (and reported at the end as re-runnable) rather than aborting the run.
+failed_platforms=()
+for platform in "${platforms[@]}"; do
+  if ! capture_platform "$platform"; then
+    failed_platforms+=("$platform")
+    kill_emulators
+  fi
 done
 
-printf '\nDone. Next, per platform:\n'
+done_platforms=()
 for platform in "${platforms[@]}"; do
-  printf '  scripts/assemble-gif.sh %s %s\n' "$version" "$platform"
+  skip=0
+  for f in "${failed_platforms[@]+"${failed_platforms[@]}"}"; do
+    [[ "$f" == "$platform" ]] && skip=1
+  done
+  [[ $skip -eq 0 ]] && done_platforms+=("$platform")
 done
+
+if [[ ${#done_platforms[@]} -gt 0 ]]; then
+  printf '\nDone. Next, per platform:\n'
+  for platform in "${done_platforms[@]}"; do
+    printf '  scripts/assemble-gif.sh %s %s\n' "$version" "$platform"
+  done
+fi
+
+if [[ ${#failed_platforms[@]} -gt 0 ]]; then
+  printf '\nIncomplete platforms (re-run later; stashed .pbws are reused):\n' >&2
+  for platform in "${failed_platforms[@]}"; do
+    printf '  scripts/capture-timelapse.sh %s %s\n' "$version" "$platform" >&2
+  done
+  exit 1
+fi

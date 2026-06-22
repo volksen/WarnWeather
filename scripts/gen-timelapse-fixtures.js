@@ -36,27 +36,55 @@ function parseHHMM(hhmm) {
 }
 
 /**
- * Write one phase's frames. watch.now advances stepMin per frame from startHHMM
- * while startEpoch (the shared forecast + radar anchor) is pinned at anchorHHMM,
- * which makes the now-marker slide and the radar current-slot step forward.
+ * Write one phase's frames. watch.now advances stepMin per frame from startHHMM.
+ *
+ * Non-scrolling (Phase B / radar): startEpoch is pinned at anchorHHMM and the
+ * full forecast/radar arrays are kept; the watch self-advances its radar window
+ * on tick, so only the clock moves frame-to-frame.
+ *
+ * Scrolling (Phase A / forecast): the forecast graph has no now-marker, so a
+ * pinned anchor would leave it frozen. Instead the anchor advances one hour per
+ * frame and every hourly forecast series slides a `window`-wide view over the
+ * base data (frame i shows base[i .. i+window)). Because the data is pinned in
+ * absolute time, the curve scrolls left, the night hatch sweeps, and the axis
+ * advances in lockstep with the clock.
  *
  * @param {Object} base Parsed base fixture (berlin.json).
  * @param {Object} opts Phase options.
  * @param {string} opts.outDir Directory to write into.
  * @param {string} opts.prefix Filename prefix, e.g. "timelapse-a".
  * @param {string} opts.startHHMM First frame's watch.now time.
- * @param {string} opts.anchorHHMM Pinned forecast/radar anchor time.
+ * @param {string} opts.anchorHHMM Forecast/radar anchor time of the first frame.
  * @param {Object} opts.clay claySettings overrides for this phase.
  * @param {number} opts.frames Number of frames.
  * @param {number} opts.stepMin Minutes between frames.
+ * @param {boolean} [opts.scroll=false] Advance the anchor and slide the data window.
+ * @param {number} [opts.window=null] Hours of forecast data shown per scrolling frame.
  * @returns {string[]} Paths of the written fixture files.
  */
 function writePhase(base, opts) {
-  const { outDir, prefix, startHHMM, anchorHHMM, clay, frames, stepMin } = opts;
+  const {
+    outDir, prefix, startHHMM, anchorHHMM, clay, frames, stepMin,
+    scroll = false, window: windowSize = null,
+  } = opts;
   const baseNow = base.watch.now;
   const start = parseHHMM(startHHMM);
   const anchor = parseHHMM(anchorHHMM);
   const startEpoch = dateFromWatchNow(baseNow, { hour: anchor.hour, minute: anchor.minute });
+  const baseDataLen = Array.isArray(base.weather && base.weather.temps)
+    ? base.weather.temps.length : 0;
+
+  if (scroll) {
+    if (!Number.isInteger(windowSize) || windowSize < 1) {
+      throw new Error('window must be a positive integer for a scrolling phase, got ' + windowSize);
+    }
+    if ((frames - 1) + windowSize > baseDataLen) {
+      throw new Error(
+        'scroll window overflows base data: (frames-1)+window = ' + ((frames - 1) + windowSize)
+        + ' exceeds the ' + baseDataLen + ' base hours; reduce frames or window'
+      );
+    }
+  }
   const written = [];
 
   for (let i = 0; i < frames; i++) {
@@ -71,12 +99,22 @@ function writePhase(base, opts) {
       minute: totalMin % 60,
       second: 0,
     };
-    // Pin the forecast/radar anchor and drop the readable startHour so
-    // prepare-fixture.js leaves startEpoch untouched. sunEvents stay in
-    // dayOffset/hour/minute form: same calendar day => identical epochs.
+    // Drop the readable startHour so prepare-fixture.js leaves startEpoch
+    // untouched. sunEvents stay in dayOffset/hour/minute form: same calendar
+    // day => identical epochs, so the night hatch is consistent across frames.
     delete frame.weather.startHour;
     delete frame.weather.startDayOffset;
-    frame.weather.startEpoch = startEpoch;
+    if (scroll) {
+      frame.weather.startEpoch = startEpoch + i * 3600;
+      for (const key of Object.keys(frame.weather)) {
+        const arr = frame.weather[key];
+        if (Array.isArray(arr) && arr.length === baseDataLen) {
+          frame.weather[key] = arr.slice(i, i + windowSize);
+        }
+      }
+    } else {
+      frame.weather.startEpoch = startEpoch;
+    }
     frame.claySettings = { ...base.claySettings, ...clay };
 
     const nn = String(i).padStart(2, '0');
@@ -89,40 +127,74 @@ function writePhase(base, opts) {
 }
 
 /**
+ * Assert a phase parameter is a positive integer.
+ *
+ * @param {string} label Parameter name for the error message.
+ * @param {number} value Resolved value.
+ * @returns {void}
+ */
+function assertPositiveInt(label, value) {
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(label + ' must be a positive integer, got ' + value);
+  }
+}
+
+/**
  * Build the two-phase time-lapse fixtures and write them to disk.
+ *
+ * Phase A (forecast) scrolls: it steps one hour per frame and slides a
+ * `phaseAWindow`-hour view over the base data, defaulting to end exactly where
+ * Phase B begins (22:20) so the combined clock is continuous. Phase B (radar)
+ * keeps the original fine-grained, pinned-anchor behavior.
  *
  * @param {Object} [opts] Options.
  * @param {string} [opts.outDir="fixtures"] Output directory.
- * @param {number} [opts.frames=20] Frames per phase.
- * @param {number} [opts.stepMin=5] Minutes between frames.
- * @param {string} [opts.phaseAStart="20:45"] Phase A first watch.now + anchor.
+ * @param {string} [opts.phaseAStart="11:20"] Phase A first watch.now + anchor.
+ * @param {number} [opts.phaseAFrames=12] Phase A frame count.
+ * @param {number} [opts.phaseAStep=60] Phase A minutes between frames (1h scroll).
+ * @param {number} [opts.phaseAWindow=13] Phase A forecast hours shown per frame.
  * @param {string} [opts.phaseBStart="22:20"] Phase B first watch.now + anchor.
+ * @param {number} [opts.phaseBFrames=20] Phase B frame count.
+ * @param {number} [opts.phaseBStep=5] Phase B minutes between frames.
  * @returns {{a: string[], b: string[]}} Written fixture paths per phase.
  */
 function generateFrames(opts = {}) {
   const outDir = opts.outDir ?? 'fixtures';
-  const frames = opts.frames ?? 20;
-  const stepMin = opts.stepMin ?? 5;
-  const phaseAStart = opts.phaseAStart ?? '20:45';
+  const phaseAStart = opts.phaseAStart ?? '11:20';
+  const phaseAFrames = opts.phaseAFrames ?? 12;
+  const phaseAStep = opts.phaseAStep ?? 60;
+  const phaseAWindow = opts.phaseAWindow ?? 13;
   const phaseBStart = opts.phaseBStart ?? '22:20';
+  const phaseBFrames = opts.phaseBFrames ?? 20;
+  const phaseBStep = opts.phaseBStep ?? 5;
 
-  if (!Number.isInteger(frames) || frames < 1) {
-    throw new Error('frames must be a positive integer, got ' + opts.frames);
-  }
-  if (!Number.isInteger(stepMin) || stepMin < 1) {
-    throw new Error('stepMin must be a positive integer, got ' + opts.stepMin);
-  }
+  assertPositiveInt('phaseAFrames', phaseAFrames);
+  assertPositiveInt('phaseAStep', phaseAStep);
+  assertPositiveInt('phaseAWindow', phaseAWindow);
+  assertPositiveInt('phaseBFrames', phaseBFrames);
+  assertPositiveInt('phaseBStep', phaseBStep);
 
   const base = JSON.parse(fs.readFileSync(BASE_PATH, 'utf8'));
   fs.mkdirSync(outDir, { recursive: true });
 
+  // Clear any timelapse fixtures from a prior run so the on-disk set always
+  // matches this run's frame counts — capture-timelapse.sh globs
+  // timelapse-[ab]-*.json, and a shorter run would otherwise leave stale,
+  // higher-numbered frames behind.
+  for (const name of fs.readdirSync(outDir)) {
+    if (/^timelapse-[ab]-\d+\.json$/.test(name)) {
+      fs.unlinkSync(path.join(outDir, name));
+    }
+  }
+
   const a = writePhase(base, {
     outDir, prefix: 'timelapse-a', startHHMM: phaseAStart, anchorHHMM: phaseAStart,
-    clay: PHASE_A_CLAY, frames, stepMin,
+    clay: PHASE_A_CLAY, frames: phaseAFrames, stepMin: phaseAStep,
+    scroll: true, window: phaseAWindow,
   });
   const b = writePhase(base, {
     outDir, prefix: 'timelapse-b', startHHMM: phaseBStart, anchorHHMM: phaseBStart,
-    clay: PHASE_B_CLAY, frames, stepMin,
+    clay: PHASE_B_CLAY, frames: phaseBFrames, stepMin: phaseBStep,
   });
   return { a, b };
 }
@@ -137,11 +209,17 @@ function parseArgs(argv) {
   const opts = {};
   const map = {
     'out-dir': 'outDir',
-    'frames': 'frames',
-    'step-min': 'stepMin',
     'phase-a-start': 'phaseAStart',
+    'phase-a-frames': 'phaseAFrames',
+    'phase-a-step-min': 'phaseAStep',
+    'phase-a-window': 'phaseAWindow',
     'phase-b-start': 'phaseBStart',
+    'phase-b-frames': 'phaseBFrames',
+    'phase-b-step-min': 'phaseBStep',
   };
+  const numericKeys = new Set([
+    'phaseAFrames', 'phaseAStep', 'phaseAWindow', 'phaseBFrames', 'phaseBStep',
+  ]);
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const eq = arg.indexOf('=');
@@ -163,7 +241,7 @@ function parseArgs(argv) {
     if (!optKey) {
       continue;
     }
-    opts[optKey] = (optKey === 'frames' || optKey === 'stepMin') ? Number(val) : val;
+    opts[optKey] = numericKeys.has(optKey) ? Number(val) : val;
   }
   return opts;
 }

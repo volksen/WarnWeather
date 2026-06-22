@@ -213,7 +213,6 @@ Schema
             ├─ title        string
             ├─ intro        string  (HTML — displayed above items)
             ├─ block        string  (custom-block id — see Registries)
-            ├─ caption      string  (caption shown below a block)
             ├─ collapsible  boolean (renders section as a collapsible card)
             └─ items[]
                  └─ (see Item fields below)
@@ -246,7 +245,6 @@ chrome. They are not serialized (no `messageKey`).
 | `title` | string | Section heading |
 | `intro` | string | HTML rendered above items |
 | `block` | string | Custom-block id (see [Registries](#registries-and-hooks)) |
-| `caption` | string | Text rendered below a block |
 | `collapsible` | boolean | Collapses the section into an expandable card |
 | `items` | Item[] | The items to render |
 

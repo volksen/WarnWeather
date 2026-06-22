@@ -184,12 +184,16 @@ var PConf = (typeof PConf !== 'undefined') ? PConf : {};
           // no staticText content, and block returned ''
           if (!sec.intro && visibleCount === 0 && staticTextCount === 0 && blockHtml === '') { continue; }
 
-          // section header
+          // section header — omit entirely for a titleless, non-collapsible section
+          // (e.g. a single-section tab whose title would just repeat the tab name);
+          // collapsible sections always keep the header for the chevron.
           var isCollapsible = Boolean(sec.collapsible);
           var isOpen = isCollapsible ? !collapsed[secId] : true;
-          var hdr = '<button class="cardHdr' + (isCollapsible ? ' coll' : '') + '"' + (isCollapsible ? ' data-coll="' + secId + '"' : '') + '><span class="ttl">' + sec.title + '</span>' + (isCollapsible ? '<span class="chev">' + (isOpen ? '&#9662;' : '&#9656;') + '</span>' : '') + '</button>';
+          var hdr = (sec.title || isCollapsible)
+            ? '<button class="cardHdr' + (isCollapsible ? ' coll' : '') + '"' + (isCollapsible ? ' data-coll="' + secId + '"' : '') + '><span class="ttl">' + (sec.title || '') + '</span>' + (isCollapsible ? '<span class="chev">' + (isOpen ? '&#9662;' : '&#9656;') + '</span>' : '') + '</button>'
+            : '';
 
-          bodyHtml += '<div class="card">' + hdr + (isOpen ? '<div>' + body + '</div>' : '') + '</div>';
+          bodyHtml += '<div class="card' + (hdr ? '' : ' nohdr') + '">' + hdr + (isOpen ? '<div>' + body + '</div>' : '') + '</div>';
         }
       }
 

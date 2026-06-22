@@ -9,16 +9,16 @@ var COLOR_LEGEND = 'Bar height grows with the rain rate; the fill steps up throu
   + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:8px;border-radius:2px;background:#00FF00;margin-bottom:3px;"></span>0.5</span>'
   + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:8px;border-radius:2px;background:#FFFF00;margin-bottom:3px;"></span>2</span>'
   + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:8px;border-radius:2px;background:#FF5555;margin-bottom:3px;"></span>10+</span>'
-  + '</span><br><span style="color:#6E7787;">The scale is compressed, not linear — each color marks roughly a five-fold jump in rate (0.1, 0.5, 2, 10 mm/h) and a full bar is a 40 mm/h downpour, so light drizzle still shows while heavy rain has room to climb. White mode draws one solid bar instead.</span>';
+  + '</span><br>The scale is compressed, not linear — each color marks roughly a five-fold jump in rate (0.1, 0.5, 2, 10 mm/h) and a full bar is a 40 mm/h downpour, so light drizzle still shows while heavy rain has room to climb. White mode draws one solid bar instead.';
 // B/W watches hide the color picker (no colors to choose), so this stands in for COLOR_LEGEND
 // there: text-only, since height is the only encoding (no color steps to show).
-var BW_LEGEND = 'Bar height grows with the rain rate (mm/h) — taller bars mean heavier rain. The scale is compressed, not linear: each step up the bar is roughly a five-fold jump in rate (0.1, 0.5, 2, 10) and a full bar is a 40 mm/h downpour, so light drizzle stays visible while heavy rain has room to climb.';
+var BW_LEGEND = '<span style="color:#8A92A0;">Bar height grows with the rain rate (mm/h) — taller bars mean heavier rain. The scale is compressed, not linear: each step up the bar is roughly a five-fold jump in rate (0.1, 0.5, 2, 10) and a full bar is a 40 mm/h downpour, so light drizzle stays visible while heavy rain has room to climb.</span>';
 module.exports = {
   appName: 'WarnWeather',
   versionLabel: versionLabel + ' <a href="https://github.com/Toasbi/WarnWeather">GitHub source</a>',
   tabs: [{
     id: 'general', label: 'General', sections: [{
-      title: 'General', items: [{
+      items: [{
         type: 'segmented',
         messageKey: 'temperatureUnits',
         label: 'Temperature units',
@@ -64,8 +64,6 @@ module.exports = {
       ] }]
     }, {
       id: 'forecast', label: 'Forecast', sections: [{
-        title: 'Forecast',
-        caption: 'Temp · Precip % · Rain bars',
         intro: 'The forecast graph is the hourly prediction — looking up to 24 hours ahead, it shows temperature plus the chance of rain each hour. ' + 'It\'s a model forecast, good for "will it rain this afternoon?" For "is it about to rain on me right now?", check the Radar tab.',
       items: [
         { type: 'segmented', messageKey: 'secondaryLine', label: 'Secondary line', defaultValue: 'precip_prob',
@@ -102,8 +100,7 @@ module.exports = {
       ] }
     ] },
     { id: 'radar', label: 'Radar', sections: [
-      { title: 'Rain radar', block: 'radarPreview', caption: 'Solid = at you · Outline = within 2 km',
-        intro: 'Rain radar appears as a second screen revealed with a wrist flick, and only when radar data is available.<br>' +
+      { intro: 'Rain radar appears as a second screen revealed with a wrist flick, and only when radar data is available.<br>' +
             'Unlike the forecast graph\'s hourly prediction, the radar is short-term and based on actual radar measurements moving toward you. ' +
             'It turns the next 2 hours into a bar graph, each bar one 5-minute frame whose height is the rain amount. ' +
             'Solid bars are rain at your exact location; the hatched outline behind them is the strongest rain anywhere ' +
@@ -114,7 +111,9 @@ module.exports = {
             messageKey: 'radarProvider',
             label: 'Radar provider',
             defaultValue: 'disabled',
-            options: [['DWD', 'dwd'], ['Off', 'disabled']]
+            hintByValue: { dwd: 'Deutscher Wetterdienst (Germany only)' },
+            options: [['DWD', 'dwd'], ['Off', 'disabled']],
+            blockBefore: 'radarPreview'
           }, {
             type: 'segmented',
             messageKey: 'radarColor',
@@ -169,10 +168,11 @@ module.exports = {
             hint: 'Re-fetch the weather the moment you save.',
             block: 'lastFetch'
           },
-        { type: 'toggle', messageKey: 'devStatsEnabled', label: 'Enable connection stats', defaultValue: false, hint: 'Locally records connection events sent to the watch. Events older than 7 days are deleted.' },
-        { type: 'toggle', messageKey: 'devStatsClear', label: 'Clear connection stats', defaultValue: false, showWhen: { key: 'devStatsEnabled', eq: true } }
+        { type: 'toggle', messageKey: 'devStatsEnabled', label: 'Enable connection stats', defaultValue: false, hint: 'Locally records connection events sent to the watch. Events older than 7 days are deleted.' }
       ] },
-      { title: 'Connection stats', collapsible: true, block: 'devStats', items: [] }
+      { title: 'Connection stats', collapsible: true, block: 'devStats', items: [
+        { type: 'toggle', messageKey: 'devStatsClear', label: 'Clear connection stats', defaultValue: false, showWhen: { key: 'devStatsEnabled', eq: true } }
+      ] }
     ] }
   ]
 };

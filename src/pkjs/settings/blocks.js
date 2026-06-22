@@ -121,7 +121,7 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
     /* ---- radarPreview: adapted from index.html:270-286 radarSVG ----------- */
     function radarPreview(state, env, userData) {
         if (state.radarProvider === 'disabled') {
-            return '<svg viewBox="0 0 200 120" style="aspect-ratio:200/120">' + rect(0, 0, 200, 120, '#000') + txt(100, 63, 10, '#566072', 'middle', 700, 'Radar off — enable a provider') + '</svg>';
+            return '<svg viewBox="0 0 200 120" style="aspect-ratio:200/120;display:block;width:calc(100% + 32px);margin:-12px -16px -14px">' + rect(0, 0, 200, 120, '#000') + txt(100, 63, 10, '#566072', 'middle', 700, 'Radar off — enable a provider') + '</svg>';
         }
         var local = [0, 0, 0, 0.2, 0.6, 1.5, 3, 7, 14, 10, 5, 2, 0.8, 0.3, 0.1, 0, 0.3, 1, 3, 8, 12, 6, 2, 0.5];
         var add = [0.4, 0.5, 0.7, 1, 1.5, 2, 3, 4, 3, 2, 1.5, 1, 0.8, 0.5, 0.4, 0.3, 0.5, 1.5, 3, 4, 3, 2, 1, 0.5];
@@ -146,7 +146,7 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
             }
             e += rainBars(local[i], x, bw, PB, plotH, radarWhite);
         }
-        return '<svg viewBox="0 0 200 120" style="aspect-ratio:200/120">' + e + '</svg>';
+        return '<svg viewBox="0 0 200 120" style="aspect-ratio:200/120;display:block;width:calc(100% + 32px);margin:-12px -16px -14px">' + e + '</svg>';
     }
 
     /* ---- devStats: ported from inject.js:30-199 renderDevStats, minus clear button --- */
@@ -158,8 +158,8 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
         var RAW_EVENT_CAP = 100;
         var TABLE_STYLE = 'border-collapse:collapse;font-size:0.72em;margin:2px 0 6px;width:100%;text-align:center;';
         var CELL_STYLE = 'border:1px solid #555;padding:1px 3px;';
-        var TITLE_STYLE = 'font-size:0.8em;font-weight:bold;margin:8px 0 0;';
-        var LEGEND_STYLE = 'font-size:0.7em;color:#9aa0a6;line-height:1.3;margin:1px 0 3px;';
+        var TITLE_STYLE = 'font-size:0.8em;font-weight:bold;margin:8px 0 0;padding:0 16px;';
+        var LEGEND_STYLE = 'font-size:0.7em;color:#9aa0a6;line-height:1.3;margin:1px 0 3px;padding:0 16px;';
         var days = {};
         var dayOrder = [];
         var raw;
@@ -269,7 +269,7 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
         });
         html += '</table>';
         if (events.length > RAW_EVENT_CAP) {
-            html += '<div style="font-size:0.72em;">Showing last ' + RAW_EVENT_CAP + ' of ' + events.length + ' events.</div>';
+            html += '<div style="font-size:0.72em;padding:0 16px;">Showing last ' + RAW_EVENT_CAP + ' of ' + events.length + ' events.</div>';
         }
         return html;
     }

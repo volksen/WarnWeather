@@ -689,14 +689,15 @@ static void forecast_update_proc(Layer *layer, GContext *ctx)
             .style = PBL_IF_COLOR_ELSE(BAR_SOLID, BAR_OUTLINED) } };
     }
     // Gust line: dashed, same scale as the wind line, drawn first so the solid
-    // wind line strokes on top where they coincide. Colored with ds.line_color
-    // (the wind color — third_line_present is only ever set when wind is selected).
-    // Uses the chart engine's internal static point buffer (no export_points, no fill).
+    // wind line strokes on top where they coincide. Always white (GColorWhite) so
+    // it reads as distinct from the wind line color; third_line_present is only
+    // ever set when wind is selected. Uses the chart engine's internal static
+    // point buffer (no export_points, no fill).
     if (ds.third_line_present) {
         layers[n++] = (ChartLayer){ CHART_LAYER_LINE, .line = {
             .values = ds.third_line, .count = ds.num_entries,
             .lo = 0, .hi = 1000, .inset_y = 0,
-            .color = ds.line_color, .width = 1, .dashed = true } };
+            .color = GColorWhite, .width = 1, .dashed = true } };
     }
     if (line_on) {
         layers[n++] = fill_on

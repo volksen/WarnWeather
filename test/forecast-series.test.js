@@ -119,7 +119,7 @@ test('wind selected: gust third line shares the wind scale', () => {
   assert.deepEqual(decode16(out.SECONDARY_LINE_TREND_INT16), [0, 500, 1000]);
   // gusts: 0/50/100 km/h @ SAME 50 ceiling → 0/1000/1000 (clamped)
   assert.deepEqual(decode16(out.THIRD_LINE_TREND_INT16), [0, 1000, 1000]);
-  // No color is emitted — the watch reuses the wind line color.
+  // No color is emitted — the watch draws the gust line in a fixed white.
   assert.equal('THIRD_LINE_COLOR' in out, false);
 });
 

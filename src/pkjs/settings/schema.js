@@ -57,7 +57,11 @@ module.exports = {
           options: [['Precip','precip_prob'],['Wind','wind'],['Off','off']] },
         { type: 'toggle', messageKey: 'secondaryLineFill', label: 'Fill area under line', defaultValue: true, hint: 'Shade the area beneath the curve.', showWhen: { key: 'secondaryLine', eq: 'precip_prob' } },
         { type: 'segmented', messageKey: 'windScale', label: 'Wind graph scale', defaultValue: 'mid',
-          hintByValue: { low: 'Tops out at 30 km/h (19 mph) …', mid: 'Tops out at 50 km/h (31 mph) …', high: 'Tops out at 70 km/h (43 mph) …' },
+          hintByValue: {
+            low: 'Tops out at 30 km/h (19 mph) — emphasizes light, gentle winds.',
+            mid: 'Tops out at 50 km/h (31 mph) — general use; gusts visible, typical winds sit mid-graph.',
+            high: 'Tops out at 70 km/h (43 mph) — keeps strong gusts from flattening against the top.'
+          },
           options: [['Low','low'],['Mid','mid'],['High','high']], showWhen: { key: 'secondaryLine', eq: 'wind' } },
         { type: 'segmented', messageKey: 'barSource', label: 'Bars', defaultValue: 'rain', options: [['Rain','rain'],['Off','off']] },
           {

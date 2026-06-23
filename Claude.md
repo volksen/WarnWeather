@@ -4,6 +4,8 @@ After you've added a feature run `mise build` to verify it builds.
 
 If you need runtime logs, `mise install-emulator --logs` runs it in an emulator and prints logs to the terminal. The process stays alive until the emulator is closed
 
+For config-UI (settings page) work, `mise preview-config` renders the live page — real schema, blocks, and onBuild hooks injected — to `docs/superpowers/plans/screenshot/config-ui-preview.html`. Open it in a desktop browser to eyeball/interact with the settings UI (tabs, toggles, color picker all work) without the emulator. It reads source fresh each run, so it always reflects the current `shell.html`/`blocks.js`. Pass `[out] [platform]` to vary (e.g. `mise preview-config -- preview.html aplite` for the B/W rendering).
+
 ## Debugging
 
 - C: `APP_LOG(APP_LOG_LEVEL_DEBUG, "msg", args)`

@@ -34,6 +34,11 @@ run = "scripts/prepare-package.sh"
 description = "Serve telemetry ingest function locally"
 run = "supabase functions serve telemetry-ingest --env-file .env"
 
+[tasks.preview-config]
+description = "Render a browser-openable preview of the config UI to docs/ (args: [out] [platform], default basalt). Open the file in a browser instead of the emulator."
+alias = "preview"
+run = "node scripts/preview-config-page.js"
+
 [tasks.clean]
 description = "Clean build artifacts"
 run = "pebble clean"

@@ -1,9 +1,19 @@
 // src/pkjs/config-ui/lib/engine.js — ES5. PConf.engine/blocks/hooks + module.exports.
-var PConf = (typeof PConf !== 'undefined') ? PConf : {};
+// Pure render helpers live at module scope (unit-testable); boot() owns live state + DOM wiring.
+var PConf = (typeof PConf !== 'undefined') ? PConf
+  : (typeof global !== 'undefined') ? (global.PConf = global.PConf || {}) : {};
 (function () {
-  function intToHex(n) { return '#' + ('000000' + (n & 0xFFFFFF).toString(16)).slice(-6).toUpperCase(); }
-  function eachItem(schema, fn) {
-    schema.tabs.forEach(function (t) { t.sections.forEach(function (sec) { sec.items.forEach(function (it) { fn(it, sec, t); }); }); });
+  // Shared single-source helpers: PConf.color / PConf.schemaWalk are concatenated before this
+  // file in the page, and required first by the Node tests. No local re-implementation.
+  var intToHex = PConf.color.intToHex;
+  var eachItem = PConf.schemaWalk.eachItem;
+
+  // HTML-escape author/user text interpolated into innerHTML. NOT applied to fields documented as
+  // HTML (intro, hint, staticText.text, versionLabel) — those are intentional markup.
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   // --- block registry ---
@@ -44,178 +54,170 @@ var PConf = (typeof PConf !== 'undefined') ? PConf : {};
     return out;
   })();
 
+  // ---- control renderers: each takes (item, value[, openColor]) -> HTML string.
+  // options are [label, value] pairs; read o[0]=label, o[1]=value.
+  function optionButtons(item, v, isRadio) {
+    var h = '', i, o;
+    for (i = 0; i < item.options.length; i++) {
+      o = item.options[i];
+      var inner = isRadio ? '<span>' + esc(o[0]) + '</span><span class="dot"></span>' : esc(o[0]);
+      h += '<button class="' + (v === o[1] ? 'on' : '') + '" data-k="' + item.messageKey + '" data-v="' + esc(o[1]) + '">' + inner + '</button>';
+    }
+    return h;
+  }
+  function renderToggle(item, v) {
+    return '<button class="sw' + (v ? ' on' : '') + '" data-k="' + item.messageKey + '" data-toggle="1"><i></i></button>';
+  }
+  function renderSegmented(item, v) { return '<div class="seg">' + optionButtons(item, v, false) + '</div>'; }
+  function renderRadio(item, v) { return '<div class="radio">' + optionButtons(item, v, true) + '</div>'; }
+  function renderSelect(item, v) {
+    var h = '<select data-k="' + item.messageKey + '">', i, o;
+    for (i = 0; i < item.options.length; i++) {
+      o = item.options[i];
+      h += '<option value="' + esc(o[1]) + '"' + (v === o[1] ? ' selected' : '') + '>' + esc(o[0]) + '</option>';
+    }
+    return h + '</select>';
+  }
+  function renderText(item, v) {
+    var ph = (item.attributes && item.attributes.placeholder) ? esc(item.attributes.placeholder) : '';
+    return '<input type="text" data-k="' + item.messageKey + '" value="' + esc(v || '') + '" placeholder="' + ph + '">';
+  }
+  function renderColor(item, v, openColor) {
+    var disp = String(v).toUpperCase();
+    var h = '<div class="sw-wrap" data-color="' + item.messageKey + '"><b style="background:' + esc(v) + '"></b><span>' + esc(disp) + '</span></div>';
+    if (openColor === item.messageKey) {
+      h += '<div class="palette">';
+      for (var i = 0; i < PALETTE.length; i++) {
+        var hex = PALETTE[i];
+        h += '<button class="' + (disp === hex.toUpperCase() ? 'on' : '') + '" style="background:' + hex + '" data-k="' + item.messageKey + '" data-color-pick="' + hex + '"></button>';
+      }
+      h += '</div>';
+    }
+    return h;
+  }
+  var CONTROLS = {
+    toggle: function (item, view) { return renderToggle(item, view.value); },
+    segmented: function (item, view) { return renderSegmented(item, view.value); },
+    radio: function (item, view) { return renderRadio(item, view.value); },
+    select: function (item, view) { return renderSelect(item, view.value); },
+    text: function (item, view) { return renderText(item, view.value); },
+    color: function (item, view) { return renderColor(item, view.value, view.openColor); }
+  };
+  // view = { value, openColor }
+  function renderControl(item, view) {
+    var fn = CONTROLS[item.type];
+    return fn ? fn(item, view) : '';
+  }
+
+  // Wrap a control in a row with label/hint chrome. Stacked for text/radio/open-color.
+  function renderRow(item, view) {
+    var hint = item.hintByValue ? (item.hintByValue[view.value] || item.hint) : item.hint;
+    var stacked = item.type === 'text' || item.type === 'radio' || (item.type === 'color' && view.openColor === item.messageKey);
+    var hintHtml = hint ? '<div class="hint">' + hint + '</div>' : '';
+    var label = '<div class="lbl">' + esc(item.label) + '</div>';
+    if (stacked) {
+      return '<div class="row stack">' + label + hintHtml + '<div>' + renderControl(item, view) + '</div></div>';
+    }
+    return '<div class="row"><div class="lft">' + label + hintHtml + '</div><div class="rgt">' + renderControl(item, view) + '</div></div>';
+  }
+
+  // Render a registered block by id, wrapped in .blockrow ('.blockrow sticky' when sticky).
+  // '' if unregistered or empty.
+  function renderBlock(id, S, ENV, USERDATA, sticky) {
+    if (!id) { return ''; }
+    var fn = PConf.blocks.get(id);
+    var html = fn ? fn(S, ENV, USERDATA) : '';
+    return html ? '<div class="blockrow' + (sticky ? ' sticky' : '') + '">' + html + '</div>' : '';
+  }
+
+  // Render one schema item honoring showWhen. Returns { html, kind } with kind in
+  // 'control' | 'static' | 'hidden' so the section can decide if the card is empty.
+  function renderItem(item, view, cx) {
+    if (!PConf.showWhen.isVisible(item, cx.evalCtx)) { return { html: '', kind: 'hidden' }; }
+    if (item.type === 'staticText') {
+      return { html: '<div class="static">' + (item.text || '') + '</div>', kind: 'static' };
+    }
+    var html = renderBlock(item.blockBefore, cx.S, cx.ENV, cx.USERDATA, item.blockBeforeSticky)
+      + renderRow(item, view)
+      + renderBlock(item.block, cx.S, cx.ENV, cx.USERDATA);
+    return { html: html, kind: 'control' };
+  }
+
+  function renderCardHeader(sec, secId, isCollapsible, isOpen) {
+    if (!(sec.title || isCollapsible)) { return ''; }
+    var chev = isCollapsible ? '<span class="chev">' + (isOpen ? '&#9662;' : '&#9656;') + '</span>' : '';
+    var collAttr = isCollapsible ? ' data-coll="' + esc(secId) + '"' : '';
+    return '<button class="cardHdr' + (isCollapsible ? ' coll' : '') + '"' + collAttr + '>'
+      + '<span class="ttl">' + esc(sec.title || '') + '</span>' + chev + '</button>';
+  }
+
+  // Render one section card. '' when empty (no intro, no visible control/static items, no block).
+  function renderSection(sec, cx) {
+    var secId = sec.id || sec.title;
+    var body = sec.intro ? '<div class="intro">' + sec.intro + '</div>' : '';
+    var controlCount = 0, staticCount = 0, i;
+    for (i = 0; i < sec.items.length; i++) {
+      var item = sec.items[i];
+      var view = { value: cx.S[item.messageKey], openColor: cx.openColor };
+      var r = renderItem(item, view, cx);
+      if (r.kind === 'control') { controlCount++; }
+      else if (r.kind === 'static') { staticCount++; }
+      body += r.html;
+    }
+    var blockHtml = renderBlock(sec.block, cx.S, cx.ENV, cx.USERDATA);
+    body += blockHtml;
+    if (!sec.intro && controlCount === 0 && staticCount === 0 && blockHtml === '') { return ''; }
+    var isCollapsible = Boolean(sec.collapsible);
+    var isOpen = isCollapsible ? !cx.collapsed[secId] : true;
+    var hdr = renderCardHeader(sec, secId, isCollapsible, isOpen);
+    return '<div class="card' + (hdr ? '' : ' nohdr') + '">' + hdr + (isOpen ? '<div>' + body + '</div>' : '') + '</div>';
+  }
+
+  function renderTabBar(schema, activeTab) {
+    var h = '', i, tab;
+    for (i = 0; i < schema.tabs.length; i++) {
+      tab = schema.tabs[i];
+      h += '<button class="tab' + (activeTab === tab.id ? ' on' : '') + '" data-tab="' + esc(tab.id) + '">' + esc(tab.label) + '</button>';
+    }
+    return h;
+  }
+
+  // Pure: full scroll-body HTML for the active tab.
+  // cx = { S, ENV, USERDATA, openColor, collapsed, evalCtx }
+  function renderBody(schema, activeTab, cx) {
+    var h = '', ti, si;
+    for (ti = 0; ti < schema.tabs.length; ti++) {
+      var t = schema.tabs[ti];
+      if (t.id !== activeTab) { continue; }
+      for (si = 0; si < t.sections.length; si++) { h += renderSection(t.sections[si], cx); }
+    }
+    return h + '<div class="version">' + (schema.versionLabel || '') + '</div>';
+  }
+
   function boot() {
     var SCHEMA = INJECTED_SCHEMA, ENV = INJECTED_ENV || { color: true, round: false, platform: '' };
     var USERDATA = INJECTED_USERDATA || {}, RETURN_TO = INJECTED_RETURN || 'pebblejs://close#';
     var S = hydrate(SCHEMA, INJECTED_CFG), INITIAL = Object.assign({}, S);
     var activeTab = SCHEMA.tabs[0].id, openColor = null, collapsed = {};
-    function ctx() { var c = Object.assign({}, S); c.env = ENV; return c; }
+    // evalCtx(): the {settings..., env} object showWhen predicates evaluate against.
+    function evalCtx() { var c = Object.assign({}, S); c.env = ENV; return c; }
     var hookCtx = { get: function (k) { return S[k]; }, set: function (k, v) { S[k] = v; }, getInitial: function (k) { return INITIAL[k]; } };
 
-    // ctrl(item): build the HTML control for one schema item.
-    // Maps schema type to the control markup from index.html:339-351.
-    // options are [label, value] pairs; read o[0]=label, o[1]=value.
-    function ctrl(item) {
-      var v = S[item.messageKey], h = '', i, o;
-      if (item.type === 'toggle') {
-        return '<button class="sw' + (v ? ' on' : '') + '" data-k="' + item.messageKey + '" data-toggle="1"><i></i></button>';
-      }
-      if (item.type === 'segmented') {
-        h = '<div class="seg">';
-        for (i = 0; i < item.options.length; i++) {
-          o = item.options[i];
-          h += '<button class="' + (v === o[1] ? 'on' : '') + '" data-k="' + item.messageKey + '" data-v="' + o[1] + '">' + o[0] + '</button>';
-        }
-        return h + '</div>';
-      }
-      if (item.type === 'radio') {
-        h = '<div class="radio">';
-        for (i = 0; i < item.options.length; i++) {
-          o = item.options[i];
-          h += '<button class="' + (v === o[1] ? 'on' : '') + '" data-k="' + item.messageKey + '" data-v="' + o[1] + '"><span>' + o[0] + '</span><span class="dot"></span></button>';
-        }
-        return h + '</div>';
-      }
-      if (item.type === 'select') {
-        h = '<select data-k="' + item.messageKey + '">';
-        for (i = 0; i < item.options.length; i++) {
-          o = item.options[i];
-          h += '<option value="' + o[1] + '"' + (v === o[1] ? ' selected' : '') + '>' + o[0] + '</option>';
-        }
-        return h + '</select>';
-      }
-      if (item.type === 'text') {
-        var ph = (item.attributes && item.attributes.placeholder) ? item.attributes.placeholder : '';
-        return '<input type="text" data-k="' + item.messageKey + '" value="' + (v || '').replace(/"/g, '&quot;') + '" placeholder="' + ph + '">';
-      }
-      if (item.type === 'color') {
-        h = '<div class="sw-wrap" data-color="' + item.messageKey + '"><b style="background:' + v + '"></b><span>' + String(v).toUpperCase() + '</span></div>';
-        if (openColor === item.messageKey) {
-          h += '<div class="palette">';
-          for (i = 0; i < PALETTE.length; i++) {
-            var hex = PALETTE[i];
-            h += '<button class="' + (String(v).toUpperCase() === hex.toUpperCase() ? 'on' : '') + '" style="background:' + hex + '" data-k="' + item.messageKey + '" data-color-pick="' + hex + '"></button>';
-          }
-          h += '</div>';
-        }
-        return h;
-      }
-      return '';
-    }
-
-    // rowEl(item): wrap ctrl() in a row div with label/hint chrome.
-    // Stacked layout for text, radio, color-open (index.html:355-362).
-    function rowEl(item) {
-      var hint = item.hintByValue ? (item.hintByValue[S[item.messageKey]] || item.hint) : item.hint;
-      var stacked = item.type === 'text' || item.type === 'radio' || (item.type === 'color' && openColor === item.messageKey);
-      var cls = 'row' + (stacked ? ' stack' : '');
-      if (stacked) {
-        return '<div class="' + cls + '"><div class="lbl">' + item.label + '</div>' + (hint ? '<div class="hint">' + hint + '</div>' : '') + '<div>' + ctrl(item) + '</div></div>';
-      }
-      return '<div class="' + cls + '"><div class="lft"><div class="lbl">' + item.label + '</div>' + (hint ? '<div class="hint">' + hint + '</div>' : '') + '</div><div class="rgt">' + ctrl(item) + '</div></div>';
-    }
-
-    // render(): rebuild tabs + body from SCHEMA state.
-    // Adapted from index.html:364-380 but SCHEMA-driven.
+    // boot() requires the DOM; it is never called from Node tests (which exercise the pure
+    // helpers above), so DOM access here is unguarded by design.
     function render() {
-      // tabs from SCHEMA.tabs
-      var tabsEl = document.getElementById('tabs');
-      var tabHtml = '';
-      for (var tabi = 0; tabi < SCHEMA.tabs.length; tabi++) {
-        var tab = SCHEMA.tabs[tabi];
-        tabHtml += '<button class="tab' + (activeTab === tab.id ? ' on' : '') + '" data-tab="' + tab.id + '">' + tab.label + '</button>';
-      }
-      tabsEl.innerHTML = tabHtml;
-
-      // collect sections for active tab
-      var bodyHtml = '';
-      for (var seci = 0; seci < SCHEMA.tabs.length; seci++) {
-        var t = SCHEMA.tabs[seci];
-        if (t.id !== activeTab) { continue; }
-        for (var si = 0; si < t.sections.length; si++) {
-          var sec = t.sections[si];
-          var secId = sec.id || sec.title;
-
-          // build section body
-          var body = '';
-          if (sec.intro) { body += '<div class="intro">' + sec.intro + '</div>'; }
-
-          // render visible items
-          var visibleCount = 0;
-          var staticTextCount = 0;
-          var ctxNow = ctx();
-          for (var ii = 0; ii < sec.items.length; ii++) {
-            var item = sec.items[ii];
-            // staticText: emit verbatim text, wrapped for consistent padding
-            // (still honor showWhen so a static note can be platform/state-gated)
-            if (item.type === 'staticText') {
-              if (!PConf.showWhen.isVisible(item, ctxNow)) { continue; }
-              body += '<div class="static">' + (item.text || '') + '</div>';
-              staticTextCount++;
-              continue;
-            }
-            // skip hidden items
-            if (!PConf.showWhen.isVisible(item, ctxNow)) { continue; }
-            visibleCount++;
-            // item-level blockBefore: render its data inline, directly above this control
-            if (item.blockBefore) {
-              var pbfn = PConf.blocks.get(item.blockBefore);
-              var pbHtml = pbfn ? pbfn(S, ENV, USERDATA) : '';
-              if (pbHtml) { body += '<div class="blockrow' + (item.blockBeforeSticky ? ' sticky' : '') + '">' + pbHtml + '</div>'; }
-            }
-            body += rowEl(item);
-            // item-level block: render its data inline, directly under this control
-            if (item.block) {
-              var ibfn = PConf.blocks.get(item.block);
-              var ibHtml = ibfn ? ibfn(S, ENV, USERDATA) : '';
-              if (ibHtml) { body += '<div class="blockrow">' + ibHtml + '</div>'; }
-            }
-          }
-
-          // block injection
-          var blockHtml = '';
-          if (sec.block) {
-            var bfn = PConf.blocks.get(sec.block);
-            blockHtml = bfn ? bfn(S, ENV, USERDATA) : '';
-            body += blockHtml;
-          }
-
-          // skip section card if genuinely empty: no intro, no visible control items,
-          // no staticText content, and block returned ''
-          if (!sec.intro && visibleCount === 0 && staticTextCount === 0 && blockHtml === '') { continue; }
-
-          // section header — omit entirely for a titleless, non-collapsible section
-          // (e.g. a single-section tab whose title would just repeat the tab name);
-          // collapsible sections always keep the header for the chevron.
-          var isCollapsible = Boolean(sec.collapsible);
-          var isOpen = isCollapsible ? !collapsed[secId] : true;
-          var hdr = (sec.title || isCollapsible)
-            ? '<button class="cardHdr' + (isCollapsible ? ' coll' : '') + '"' + (isCollapsible ? ' data-coll="' + secId + '"' : '') + '><span class="ttl">' + (sec.title || '') + '</span>' + (isCollapsible ? '<span class="chev">' + (isOpen ? '&#9662;' : '&#9656;') + '</span>' : '') + '</button>'
-            : '';
-
-          bodyHtml += '<div class="card' + (hdr ? '' : ' nohdr') + '">' + hdr + (isOpen ? '<div>' + body + '</div>' : '') + '</div>';
-        }
-      }
-
-      // version label at bottom
-      bodyHtml += '<div class="version">' + (SCHEMA.versionLabel || '') + '</div>';
-
-      document.getElementById('scroll').innerHTML = bodyHtml;
+      var cx = { S: S, ENV: ENV, USERDATA: USERDATA, openColor: openColor, collapsed: collapsed, evalCtx: evalCtx() };
+      document.getElementById('tabs').innerHTML = renderTabBar(SCHEMA, activeTab);
+      document.getElementById('scroll').innerHTML = renderBody(SCHEMA, activeTab, cx);
     }
 
-    // set appName into #appTitle
-    if (typeof document !== 'undefined' && document.getElementById('appTitle')) {
-      document.getElementById('appTitle').textContent = SCHEMA.appName;
-    }
+    document.getElementById('appTitle').textContent = SCHEMA.appName;
     PConf.hooks.runLoad(hookCtx);
 
-    // event delegation — tabs
     document.getElementById('tabs').addEventListener('click', function (e) {
       var b = e.target.closest('[data-tab]');
       if (b) { activeTab = b.getAttribute('data-tab'); openColor = null; render(); }
     });
-
-    // event delegation — scroll (click)
     document.getElementById('scroll').addEventListener('click', function (e) {
       var t;
       if ((t = e.target.closest('[data-toggle]'))) { S[t.getAttribute('data-k')] = !S[t.getAttribute('data-k')]; render(); return; }
@@ -224,20 +226,14 @@ var PConf = (typeof PConf !== 'undefined') ? PConf : {};
       if ((t = e.target.closest('[data-v]'))) { S[t.getAttribute('data-k')] = t.getAttribute('data-v'); render(); return; }
       if ((t = e.target.closest('[data-coll]'))) { var sid = t.getAttribute('data-coll'); collapsed[sid] = !collapsed[sid]; render(); return; }
     });
-
-    // event delegation — scroll (change: select)
     document.getElementById('scroll').addEventListener('change', function (e) {
       var sel = e.target.closest('select');
       if (sel) { S[sel.getAttribute('data-k')] = sel.value; render(); }
     });
-
-    // event delegation — scroll (input: text)
     document.getElementById('scroll').addEventListener('input', function (e) {
       var inp = e.target.closest('input[type=text]');
       if (inp) { S[inp.getAttribute('data-k')] = inp.value; }
     });
-
-    // save button
     document.getElementById('save').addEventListener('click', function () {
       PConf.hooks.runSubmit(hookCtx);
       var blob = serialize(SCHEMA, S);
@@ -248,8 +244,17 @@ var PConf = (typeof PConf !== 'undefined') ? PConf : {};
     render();
   }
 
-  PConf.engine = { serialize: serialize, hydrate: hydrate, boot: boot };
+  PConf.engine = {
+    serialize: serialize, hydrate: hydrate, boot: boot,
+    esc: esc, renderControl: renderControl, renderRow: renderRow,
+    renderTabBar: renderTabBar, renderBody: renderBody
+  };
 })();
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { serialize: PConf.engine.serialize, hydrate: PConf.engine.hydrate, boot: PConf.engine.boot, blocks: PConf.blocks, hooks: PConf.hooks };
+  module.exports = {
+    serialize: PConf.engine.serialize, hydrate: PConf.engine.hydrate, boot: PConf.engine.boot,
+    blocks: PConf.blocks, hooks: PConf.hooks,
+    esc: PConf.engine.esc, renderControl: PConf.engine.renderControl, renderRow: PConf.engine.renderRow,
+    renderTabBar: PConf.engine.renderTabBar, renderBody: PConf.engine.renderBody
+  };
 }

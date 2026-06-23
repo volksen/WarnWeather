@@ -48,26 +48,80 @@ fi
 frames_root="screenshot/$version/timelapse/frames"
 pbw_dir="build/timelapse-pbw"
 
-# Run `pebble screenshot` with a 30s bound so a wedged emulator can't hang the
-# capture forever. Uses timeout/gtimeout when present (GNU coreutils), else a
-# portable bash watchdog so no external dependency is required on stock macOS.
-screenshot_bounded() {
-  local out="$1" plat="$2"
+# --- diagnostics -------------------------------------------------------------
+# Verbose, timestamped trace of every emulator command (duration + exit status)
+# to stderr AND a per-run logfile, so a misbehaving capture leaves something
+# shareable instead of a frozen terminal. Set WW_WATCH_LOGS=1 to also tail the
+# watch's own APP_LOG output per platform into <frames>/<platform>/watch.log.
+log_dir="screenshot/$version/timelapse"
+mkdir -p "$log_dir"
+log_file="$log_dir/capture.log"
+printf '\n===== capture-timelapse %s [%s] platforms=%s =====\n' \
+  "$version" "$(date '+%Y-%m-%d %H:%M:%S')" "${platforms[*]}" >>"$log_file"
+
+log() {
+  local line="[$(date '+%H:%M:%S')] $*"
+  printf '%s\n' "$line" >&2
+  printf '%s\n' "$line" >>"$log_file"
+}
+
+# Count matching processes portably (macOS pgrep lacks -c).
+proc_count() { pgrep -f "$1" 2>/dev/null | wc -l | tr -d ' '; }
+
+# Optional watch-side log tail (WW_WATCH_LOGS=1). Tied to the emulator lifecycle:
+# reaping the emulator stops the tail, and the next boot restarts it.
+watch_log_pid=""
+start_watch_logs() {
+  [[ "${WW_WATCH_LOGS:-0}" == "1" ]] || return 0
+  if [[ -n "$watch_log_pid" ]] && kill -0 "$watch_log_pid" 2>/dev/null; then return 0; fi
+  local platform="$1" wl="$frames_root/$platform/watch.log"
+  mkdir -p "$frames_root/$platform"
+  log "watch-logs: tailing $platform -> $wl"
+  pebble logs --emulator "$platform" >>"$wl" 2>&1 &
+  watch_log_pid=$!
+}
+stop_watch_logs() {
+  [[ -n "$watch_log_pid" ]] || return 0
+  kill "$watch_log_pid" 2>/dev/null || true
+  wait "$watch_log_pid" 2>/dev/null || true
+  watch_log_pid=""
+}
+
+# Bound any command with a timeout so a wedged emulator can't hang the capture
+# forever. Uses timeout/gtimeout when present (GNU coreutils), else a portable
+# bash watchdog so no external dependency is required on stock macOS.
+run_bounded() {
+  local secs="$1"; shift
+  local start end rc=0
+  log "run (<=${secs}s): $*"
+  start=$(date +%s)
+  # -k 10: if the command ignores SIGTERM at the deadline (a wedged `pebble
+  # install` does), follow up with SIGKILL 10s later so the bound is enforced.
   if command -v timeout >/dev/null 2>&1; then
-    timeout 30 pebble screenshot "$out" --emulator "$plat"
+    timeout -k 10 "$secs" "$@" || rc=$?
   elif command -v gtimeout >/dev/null 2>&1; then
-    gtimeout 30 pebble screenshot "$out" --emulator "$plat"
+    gtimeout -k 10 "$secs" "$@" || rc=$?
   else
-    pebble screenshot "$out" --emulator "$plat" &
+    "$@" &
     local pid=$!
-    ( sleep 30; kill "$pid" 2>/dev/null ) &
+    ( sleep "$secs"; kill "$pid" 2>/dev/null; sleep 10; kill -9 "$pid" 2>/dev/null ) &
     local watcher=$!
-    local rc=0
     wait "$pid" 2>/dev/null || rc=$?
     kill "$watcher" 2>/dev/null || true
     wait "$watcher" 2>/dev/null || true
-    return "$rc"
   fi
+  end=$(date +%s)
+  if [[ $rc -ne 0 && $((end - start)) -ge $secs ]]; then
+    log "TIMED OUT after $((end - start))s (rc=$rc): $*"
+  else
+    log "done in $((end - start))s (rc=$rc): $*"
+  fi
+  return "$rc"
+}
+
+# `pebble screenshot` can wedge even on a booted emulator; bound it at 30s.
+screenshot_bounded() {
+  run_bounded 30 pebble screenshot "$1" --emulator "$2"
 }
 
 # `pebble kill` sometimes leaves the heavy QEMU/pypkjs processes alive (especially
@@ -75,9 +129,22 @@ screenshot_bounded() {
 # this when switching platforms or recovering from a wedge — never between frames
 # of the same platform, where the live emulator is reused.
 kill_emulators() {
-  pebble kill >/dev/null 2>&1 || true
+  stop_watch_logs
+  log "reap: before qemu=$(proc_count qemu) pypkjs=$(proc_count pypkjs)"
+  pebble kill >>"$log_file" 2>&1 || true
   pkill -f qemu   >/dev/null 2>&1 || true
   pkill -f pypkjs >/dev/null 2>&1 || true
+  sleep 1
+  log "reap: after  qemu=$(proc_count qemu) pypkjs=$(proc_count pypkjs)"
+}
+
+# Full reset: reap stragglers AND wipe the emulator image. A force-killed QEMU
+# can corrupt emery's saved state so it never re-boots (the v1.1.0 boot wedge);
+# wiping guarantees a clean cold boot. Use on platform entry and wedge recovery.
+reset_emulator() {
+  kill_emulators
+  log "wipe: resetting emulator state"
+  run_bounded 30 pebble wipe || log "WARN: pebble wipe failed"
 }
 
 trap kill_emulators EXIT
@@ -93,7 +160,10 @@ install_with_retries() {
   local platform="$1" pbw="$2" attempt
   REBOOTED=0
   for attempt in 1 2 3; do
-    if pebble install "$pbw" --emulator "$platform"; then
+    # Bound the install: emery wedges after repeated reinstalls onto the live
+    # emulator, and a bare `pebble install` then hangs forever (no return = the
+    # retry below never fires). 60s clears a cold emery boot but catches a wedge.
+    if run_bounded 60 pebble install "$pbw" --emulator "$platform"; then
       return 0
     fi
     if [[ $attempt -eq 3 ]]; then
@@ -102,7 +172,7 @@ install_with_retries() {
       return 1
     fi
     printf 'Install attempt %d on %s failed, retrying...\n' "$attempt" "$platform" >&2
-    kill_emulators
+    reset_emulator
     REBOOTED=1
     sleep 4
   done
@@ -125,26 +195,29 @@ need_boot=1
 # of this platform.
 capture_one() {
   local platform="$1" pbw="$2" out="$3" tap="$4" attempt
+  log "frame: $(basename "$out") on $platform (tap=$tap)"
   for attempt in 1 2 3; do
     if ! install_with_retries "$platform" "$pbw"; then
       return 1
     fi
     if [[ $need_boot -eq 1 || $REBOOTED -eq 1 ]]; then
+      log "boot-wait $platform (need_boot=$need_boot rebooted=$REBOOTED)"
       boot_wait "$platform"
     else
       sleep 2
     fi
     need_boot=0
+    start_watch_logs "$platform"
     if [[ "$tap" == "tap" ]]; then
-      pebble emu-tap --emulator "$platform"   # calendar -> radar
+      run_bounded 20 pebble emu-tap --emulator "$platform" || log "WARN: emu-tap failed on $platform"   # calendar -> radar
       sleep 1
     fi
     if screenshot_bounded "$out" "$platform"; then
-      printf 'Saved %s\n' "$out"
+      log "saved $out"
       return 0
     fi
-    printf 'Screenshot attempt %d on %s timed out, reaping and retrying...\n' "$attempt" "$platform" >&2
-    kill_emulators
+    log "screenshot attempt $attempt on $platform timed out, reaping and retrying..."
+    reset_emulator
     need_boot=1
     sleep 4
   done
@@ -186,7 +259,8 @@ done
 capture_platform() {
   local platform="$1" fixture base nn
   printf '\n######## platform %s ########\n' "$platform"
-  kill_emulators
+  log "######## platform $platform ########"
+  reset_emulator
   sleep 2
   need_boot=1
 

@@ -29,6 +29,15 @@ const PHASE_B_CLAY = {
   barSource: 'off',
 };
 
+// Radar window geometry, mirrored from the C side (rain_radar_layer.c:
+// RADAR_NUM_SLOTS / RADAR_SLOT_SECONDS). Phase B scrolls a RADAR_WINDOW-slot
+// view over a longer base radar series, advancing one slot per RADAR_SLOT_SECONDS
+// of clock — the watch can't self-advance the radar in compile-time fixture
+// builds (the tick handler is #ifndef WW_FIXTURE_NOW_YEAR), so the scroll has to
+// be baked into the frames.
+const RADAR_WINDOW = 24;
+const RADAR_SLOT_SECONDS = 5 * 60;
+
 /**
  * Parse an "HH:MM" string into {hour, minute}.
  *
@@ -82,9 +91,13 @@ function computePinnedTempBounds(temps, frames, windowSize) {
 /**
  * Write one phase's frames. watch.now advances stepMin per frame from startHHMM.
  *
- * Non-scrolling (Phase B / radar): startEpoch is pinned at anchorHHMM and the
- * full forecast/radar arrays are kept; the watch self-advances its radar window
- * on tick, so only the clock moves frame-to-frame.
+ * Radar-scrolling (Phase B / radar): the forecast startEpoch is pinned at
+ * anchorHHMM so the forecast graph's now-marker sweeps as the clock advances,
+ * while a separate radarStartEpoch and a sliding RADAR_WINDOW view (frame i
+ * shows radar[i .. i+RADAR_WINDOW)) scroll the rain radar one 5-min slot per
+ * frame. The watch can't self-advance the radar in compile-time fixture builds
+ * (its tick handler is compiled out under WW_FIXTURE_NOW_YEAR), so the scroll is
+ * baked into the frames here.
  *
  * Scrolling (Phase A / forecast): the forecast graph has no now-marker, so a
  * pinned anchor would leave it frozen. Instead the anchor advances one hour per
@@ -104,12 +117,16 @@ function computePinnedTempBounds(temps, frames, windowSize) {
  * @param {number} opts.stepMin Minutes between frames.
  * @param {boolean} [opts.scroll=false] Advance the anchor and slide the data window.
  * @param {number} [opts.window=null] Hours of forecast data shown per scrolling frame.
+ * @param {boolean} [opts.radarScroll=false] Scroll a RADAR_WINDOW-slot radar view
+ *   over a longer base radar series (one slot per stepMin), pinning the forecast
+ *   startEpoch but stepping a separate radarStartEpoch. Mutually independent of
+ *   `scroll` (which is for the forecast graph).
  * @returns {string[]} Paths of the written fixture files.
  */
 function writePhase(base, opts) {
   const {
     outDir, prefix, startHHMM, anchorHHMM, clay, frames, stepMin,
-    scroll = false, window: windowSize = null,
+    scroll = false, window: windowSize = null, radarScroll = false,
   } = opts;
   const baseNow = base.watch.now;
   const start = parseHHMM(startHHMM);
@@ -126,6 +143,32 @@ function writePhase(base, opts) {
       throw new Error(
         'scroll window overflows base data: (frames-1)+window = ' + ((frames - 1) + windowSize)
         + ' exceeds the ' + baseDataLen + ' base hours; reduce frames or window'
+      );
+    }
+  }
+  // A radar-scrolling phase slides a RADAR_WINDOW view one slot per frame, so the
+  // step must be a whole number of 5-min radar slots and the base radar arrays
+  // must be long enough for the last window to still fit.
+  if (radarScroll) {
+    if ((stepMin * 60) % RADAR_SLOT_SECONDS !== 0) {
+      throw new Error(
+        'radar scroll needs stepMin to be a whole number of '
+        + (RADAR_SLOT_SECONDS / 60) + '-min slots, got ' + stepMin
+      );
+    }
+    const exact = base.weather.rainRadarExactMm;
+    const area = base.weather.rainRadarAreaMm;
+    if (!Array.isArray(exact) || !Array.isArray(area)) {
+      throw new Error('radar scroll requires rainRadarExactMm and rainRadarAreaMm arrays in the base fixture');
+    }
+    const slotsPerFrame = (stepMin * 60) / RADAR_SLOT_SECONDS;
+    const needed = RADAR_WINDOW + (frames - 1) * slotsPerFrame;
+    if (exact.length < needed || area.length < needed) {
+      throw new Error(
+        'radar scroll window overflows base radar data: need ' + needed + ' slots ('
+        + RADAR_WINDOW + ' window + ' + (frames - 1) + '*' + slotsPerFrame
+        + '), but base has exact=' + exact.length + ' area=' + area.length
+        + '; extend the radar arrays or reduce frames'
       );
     }
   }
@@ -170,6 +213,14 @@ function writePhase(base, opts) {
       });
     } else {
       frame.weather.startEpoch = startEpoch;
+    }
+    if (radarScroll) {
+      // Slide the radar window one slot per frame and anchor it to the clock
+      // (slot 0 == "now"), independent of the pinned forecast startEpoch.
+      const off = i * ((stepMin * 60) / RADAR_SLOT_SECONDS);
+      frame.weather.rainRadarExactMm = base.weather.rainRadarExactMm.slice(off, off + RADAR_WINDOW);
+      frame.weather.rainRadarAreaMm = base.weather.rainRadarAreaMm.slice(off, off + RADAR_WINDOW);
+      frame.weather.radarStartEpoch = startEpoch + off * RADAR_SLOT_SECONDS;
     }
     frame.claySettings = { ...base.claySettings, ...clay };
 
@@ -254,6 +305,7 @@ function generateFrames(opts = {}) {
   const b = writePhase(phaseBBase, {
     outDir, prefix: 'timelapse-b', startHHMM: phaseBStart, anchorHHMM: phaseBStart,
     clay: PHASE_B_CLAY, frames: phaseBFrames, stepMin: phaseBStep,
+    radarScroll: true,
   });
   return { a, b };
 }

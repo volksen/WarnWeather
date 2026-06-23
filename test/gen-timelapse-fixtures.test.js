@@ -161,14 +161,41 @@ test('Phase A pins the temp axis: every frame shares one min/max', () => {
   }
 });
 
-test('Phase B keeps the full 24 forecast/radar slots (no scroll, no slice)', () => {
+test('Phase B keeps the full forecast slots but scrolls a 24-slot radar window 5 min/frame', () => {
   const { outDir } = run();
-  for (const name of ['timelapse-b-00.json', 'timelapse-b-19.json']) {
-    const b = readFrame(outDir, name);
-    assert.equal(b.weather.temps.length, 24);
-    assert.equal(b.weather.rainRadarExactMm.length, 24);
-    assert.equal(b.weather.rainRadarAreaMm.length, 24);
+  const RADAR_WINDOW = 24;
+  const b00 = readFrame(outDir, 'timelapse-b-00.json');
+  for (let i = 0; i < B_FRAMES; i++) {
+    const b = readFrame(outDir, `timelapse-b-${String(i).padStart(2, '0')}.json`);
+    // Forecast series stay full-length and unscrolled (the now-marker sweeps via
+    // the pinned startEpoch instead).
+    assert.equal(b.weather.temps.length, 24, `temps stay 24 long (frame ${i})`);
+    assert.deepEqual(b.weather.temps, BASE.weather.temps, `temps unscrolled (frame ${i})`);
+    // Radar is a RADAR_WINDOW view sliced from the longer base, advancing one
+    // 5-min slot per frame so the rain pattern scrolls left.
+    assert.equal(b.weather.rainRadarExactMm.length, RADAR_WINDOW, `radar exact window (frame ${i})`);
+    assert.equal(b.weather.rainRadarAreaMm.length, RADAR_WINDOW, `radar area window (frame ${i})`);
+    assert.deepEqual(
+      b.weather.rainRadarExactMm, BASE.weather.rainRadarExactMm.slice(i, i + RADAR_WINDOW),
+      `radar exact b-${i} == base[${i}..${i + RADAR_WINDOW})`
+    );
+    assert.deepEqual(
+      b.weather.rainRadarAreaMm, BASE.weather.rainRadarAreaMm.slice(i, i + RADAR_WINDOW),
+      `radar area b-${i} == base[${i}..${i + RADAR_WINDOW})`
+    );
+    // Radar anchor (radarStartEpoch) tracks the clock — 300 s/frame — while the
+    // forecast anchor (startEpoch) stays pinned.
+    assert.equal(
+      b.weather.radarStartEpoch - b00.weather.radarStartEpoch, i * 300,
+      `radarStartEpoch steps 300s at frame ${i}`
+    );
   }
+});
+
+test('generateFrames throws when the radar scroll window overflows the radar base data', () => {
+  // Phase B needs RADAR_WINDOW + (frames-1) radar slots; berlin.json has 44.
+  // Start early enough that the midnight guard doesn't trip first.
+  assert.throws(() => run({ phaseBStart: '10:00', phaseBFrames: 30 }), /radar/);
 });
 
 test('frames within a phase normalize to identical sun-event epochs', () => {

@@ -1,7 +1,7 @@
 // test/fixture-weather.test.js
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { getFixtureWeatherPayload } = require('../src/pkjs/fixture-weather');
+const { getFixtureWeatherPayload, getFixtureRadarTuples } = require('../src/pkjs/fixture-weather');
 
 function decode16(bytes) {
   return Array.from(new Int16Array(new Uint8Array(bytes).buffer));
@@ -37,6 +37,22 @@ test('fixture without windKmh still produces a valid (flat) wind line', () => {
   const fixture = makeFixture({});  // no windKmh
   const out = getFixtureWeatherPayload(fixture, { secondaryLine: 'wind', windScale: 'mid', barSource: 'off' });
   assert.deepEqual(decode16(out.SECONDARY_LINE_TREND_INT16), [0, 0, 0]);
+});
+
+test('radar window anchors to startEpoch by default', () => {
+  const t = getFixtureRadarTuples(makeFixture({
+    rainRadarExactMm: [0, 1, 2], rainRadarAreaMm: [0, 1, 2],
+  }));
+  assert.equal(t.RAIN_RADAR_START, 1000);
+});
+
+test('radarStartEpoch overrides startEpoch for the radar window only', () => {
+  // Lets the time-lapse scroll the radar (radarStartEpoch steps per frame) while
+  // the forecast graph keeps its own pinned startEpoch.
+  const t = getFixtureRadarTuples(makeFixture({
+    rainRadarExactMm: [0, 1, 2], rainRadarAreaMm: [0, 1, 2], radarStartEpoch: 1300,
+  }));
+  assert.equal(t.RAIN_RADAR_START, 1300);
 });
 
 test('fixture gustKmh flows to a dashed gust third line when wind is selected', () => {

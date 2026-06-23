@@ -98,13 +98,21 @@ function getFixtureRadarTuples(fixture) {
     var toTenths = function(mmPerHour) {
         return wireUnits.clampByte((mmPerHour || 0) * 10);
     };
-    // Align radar start with the fixture clock (weather.startEpoch) so the
-    // watch's hour-axis labels render relative to fixture time, not real
-    // wall-clock time. Falls back to Date.now() if the fixture predates
-    // startEpoch.
-    var radarStart = typeof weather.startEpoch === 'number'
-        ? weather.startEpoch
-        : Math.floor(Date.now() / 1000);
+    // Align radar start with the fixture clock so the watch's hour-axis labels
+    // render relative to fixture time, not real wall-clock time. A fixture may
+    // set radarStartEpoch to scroll the radar window independently of the
+    // forecast graph's startEpoch (the time-lapse uses this so the radar
+    // advances per frame while the forecast now-marker keeps sweeping); absent
+    // that, the radar anchors to startEpoch, and falls back to Date.now() if the
+    // fixture predates startEpoch.
+    var radarStart;
+    if (typeof weather.radarStartEpoch === 'number') {
+        radarStart = weather.radarStartEpoch;
+    } else if (typeof weather.startEpoch === 'number') {
+        radarStart = weather.startEpoch;
+    } else {
+        radarStart = Math.floor(Date.now() / 1000);
+    }
     return {
         RAIN_RADAR_TREND_UINT8: weather.rainRadarExactMm.map(toTenths),
         RAIN_RADAR_TREND_AREA_UINT8: weather.rainRadarAreaMm.map(toTenths),

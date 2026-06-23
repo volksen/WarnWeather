@@ -71,7 +71,7 @@ module.exports = {
             precip_prob: 'Chance of rain each hour<br>— half-height = 50% rain chance<br>— full-height = 100% rain chance',
             wind: 'Wind speed, with an optional dotted gust line above it.',
             off: 'Temperature only.'
-          }, options: [['Precip', 'precip_prob'], ['Wind', 'wind'], ['Off', 'off']], blockBefore: 'forecastPreview'
+          }, options: [['Precip', 'precip_prob'], ['Wind', 'wind'], ['Off', 'off']], blockBefore: 'forecastPreview', blockBeforeSticky: true
         },
         { type: 'toggle', messageKey: 'secondaryLineFill', label: 'Secondary line fill', defaultValue: true, hint: 'Fills the area beneath the curve.', showWhen: { key: 'secondaryLine', eq: 'precip_prob' } },
         { type: 'segmented', messageKey: 'windScale', label: 'Wind graph scale', defaultValue: 'mid',
@@ -116,7 +116,8 @@ module.exports = {
             defaultValue: 'disabled',
             hintByValue: { dwd: 'Deutscher Wetterdienst (Germany only)' },
             options: [['DWD', 'dwd'], ['Off', 'disabled']],
-            blockBefore: 'radarPreview'
+            blockBefore: 'radarPreview',
+            blockBeforeSticky: true
           }, {
             type: 'segmented',
             messageKey: 'radarColor',

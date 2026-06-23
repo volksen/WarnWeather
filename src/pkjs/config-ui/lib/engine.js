@@ -161,7 +161,7 @@ var PConf = (typeof PConf !== 'undefined') ? PConf : {};
             if (item.blockBefore) {
               var pbfn = PConf.blocks.get(item.blockBefore);
               var pbHtml = pbfn ? pbfn(S, ENV, USERDATA) : '';
-              if (pbHtml) { body += '<div class="blockrow">' + pbHtml + '</div>'; }
+              if (pbHtml) { body += '<div class="blockrow' + (item.blockBeforeSticky ? ' sticky' : '') + '">' + pbHtml + '</div>'; }
             }
             body += rowEl(item);
             // item-level block: render its data inline, directly under this control

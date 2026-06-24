@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="resources/banner-pebble-time2-red.png" alt="WarnWeather — weather, radar &amp; calendar" width="720">
+</p>
+
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/Toasbi/WarnWeather?label=latest&color=85C1E9&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAQAAABKfvVzAAAAAmJLR0QA/4ePzL8AAAC0SURBVDjLldLLCcJAFEbhP4oIE1xYhw1pA4JWYRGCVbhxoTshWIUNaAnBgB4XBiTJ3HncbALznXAZIpnDmHnnmSqAS470p2Fn8wrfNEzS+INX++ZS+J6CRZu4lGWWEgVPT2DsfmfFwbMSjiuxcXn8H5gX6Q+S+ZtRDofT7/uXRF5RSmJEncEliS2fDC5JrCPJjVn/lwglQx5M/NxMbO5NwnyQxHknSeOSxIaac+feo0lhn30BIXaN/u4MXmAAAAAASUVORK5CYII=)](https://github.com/Toasbi/WarnWeather/releases/latest)
 [![Pebble Store Hearts](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fappstore-api.repebble.com%2Fapi%2Fv1%2Fapps%2Fid%2F67d6f1fcdb264341b850f79a%3Fimage_ratio%3D1%26hardware%3Dbasalt%26firmware_version%3D3&query=%24.data%5B0%5D.hearts&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI%2BPHRpdGxlPmhlYXJ0PC90aXRsZT48cGF0aCBmaWxsPSJ3aGl0ZSIgZD0iTTEyLDIxLjM1TDEwLjU1LDIwLjAzQzUuNCwxNS4zNiAyLDEyLjI3IDIsOC41QzIsNS40MSA0LjQyLDMgNy41LDNDOS4yNCwzIDEwLjkxLDMuODEgMTIsNS4wOEMxMy4wOSwzLjgxIDE0Ljc2LDMgMTYuNSwzQzE5LjU4LDMgMjIsNS40MSAyMiw4LjVDMjIsMTIuMjcgMTguNiwxNS4zNiAxMy40NSwyMC4wM0wxMiwyMS4zNVoiIC8%2BPC9zdmc%2B&label=pebble%20store&color=%23FFAA00)](https://apps.repebble.com/67d6f1fcdb264341b850f79a)
 [![Rebble Store Hearts](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fappstore-api.rebble.io%2Fapi%2Fv1%2Fapps%2Fid%2F6a3645239d979d000abc99db%3Fimage_ratio%3D1%26hardware%3Dbasalt%26firmware_version%3D3&query=%24.data%5B0%5D.hearts&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI%2BPHRpdGxlPmhlYXJ0PC90aXRsZT48cGF0aCBmaWxsPSJ3aGl0ZSIgZD0iTTEyLDIxLjM1TDEwLjU1LDIwLjAzQzUuNCwxNS4zNiAyLDEyLjI3IDIsOC41QzIsNS40MSA0LjQyLDMgNy41LDNDOS4yNCwzIDEwLjkxLDMuODEgMTIsNS4wOEMxMy4wOSwzLjgxIDE0Ljc2LDMgMTYuNSwzQzE5LjU4LDMgMjIsNS40MSAyMiw4LjVDMjIsMTIuMjcgMTguNiwxNS4zNiAxMy40NSwyMC4wM0wxMiwyMS4zNVoiIC8%2BPC9zdmc%2B&label=rebble%20store&color=%23FFAA00)
@@ -14,7 +18,7 @@ A weather watchface for Pebble inspired by ForecasWatch2, with a 24-hour forecas
 
 | Pebble Time | Pebble 2 Duo | Pebble Time 2 |
 | --- | --- | --- |
-| <img src="screenshot/v1.0.0/composite/pebble-time-red.png" alt="Pebble Time screenshot"> | <img src="screenshot/v1.0.0/composite/pebble2-duo-white.png" alt="Pebble 2 Duo screenshot"> | <img src="screenshot/v1.0.0/composite/pebble-time2-red.png" alt="Pebble Time 2 screenshot"> |
+| <img src="screenshot/v1.3.2/timelapse/basalt-combined.gif" alt="Pebble Time timelapse" height="240"> | <img src="screenshot/v1.3.2/timelapse/flint-combined.gif" alt="Pebble 2 Duo timelapse" height="240"> | <img src="screenshot/v1.3.2/timelapse/emery-combined.gif" alt="Pebble Time 2 timelapse" height="240"> |
 
 ## Features
 

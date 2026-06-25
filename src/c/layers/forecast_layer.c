@@ -272,8 +272,13 @@ static int16_t graph_x_for_time(time_t timestamp, time_t graph_start, time_t gra
         return graph_right;
     }
 
-    const int64_t elapsed = (int64_t)timestamp - graph_start;
-    const int64_t total = (int64_t)graph_end - graph_start;
+    // After the guards above, graph_start < timestamp < graph_end, so
+    // 0 < elapsed < total. total is a forecast span (<= ~3 days for 24
+    // entries) and size.w <= 200 (emery), so elapsed * size.w stays far below
+    // INT32_MAX — 32-bit math is exact here and avoids pulling in the 64-bit
+    // soft-divide routine (__udivmoddi4, ~754 B).
+    const int32_t elapsed = (int32_t)(timestamp - graph_start);
+    const int32_t total   = (int32_t)(graph_end - graph_start);
     return graph_left + (int16_t)((elapsed * graph_plot_rect.size.w) / total);
 }
 

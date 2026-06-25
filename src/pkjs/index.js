@@ -23,6 +23,7 @@ var releaseNotifications = require('./release-notifications.js');
 var sleepWindow = require('./sleep-window.js');
 var claySettings = require('./clay-settings.js');
 var fixtureWeather = require('./fixture-weather.js');
+var holidayMask = require('./holidays/holiday-mask.js');
 
 /**
  * Full release-notification manifest (dev: force-show by version). Omitted from bundle if missing.
@@ -60,6 +61,7 @@ var KEY_GEOCODE_CACHE = storageKeys.GEOCODE_CACHE_KEY;
 var KEY_GEOCODE_BACKOFF = storageKeys.GEOCODE_BACKOFF_KEY;
 var KEY_V1_34_0_WEEKEND_HOLIDAY_COLOR_MIGRATION = 'v1.34.0_weekend_holiday_color_migration';
 var KEY_LAST_IS_SLEEPING = storageKeys.LAST_IS_SLEEPING_KEY;
+var KEY_LAST_HOLIDAY_DAY = 'last_holiday_day';
 var DEFAULT_COLOR_WHITE = pebbleColors.GColorWhite;
 var DEFAULT_COLOR_FOLLY = pebbleColors.GColorFolly;
 
@@ -408,8 +410,26 @@ function resetFetchAttemptCounter() {
 
 function startTick() {
     console.log('Tick from PKJS!');
+    maybeResendHolidaysOnDayChange();
     tryFetch(app.provider);
     setTimeout(startTick, 60 * 1000); // 60 * 1000 milsec = 1 minute
+}
+
+/**
+ * Resend Clay (which carries the HOLIDAYS mask) once per local-day change so a
+ * week rollover refreshes the mask without the user opening settings. The Clay
+ * outbox dedupes by content, so within-week days are suppressed and only week
+ * boundaries actually transmit.
+ *
+ * @returns {void}
+ */
+function maybeResendHolidaysOnDayChange() {
+    if (!app.settings) { return; }
+    var now = new Date();
+    var today = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate();
+    if (localStorage.getItem(KEY_LAST_HOLIDAY_DAY) === today) { return; }
+    localStorage.setItem(KEY_LAST_HOLIDAY_DAY, today);
+    sendClaySettings(function() {}, function() {});
 }
 
 /**
@@ -439,6 +459,15 @@ function sendClaySettings(onSuccess, onFailure) {
         "CLAY_COLOR_SUNDAY": app.settings.hasOwnProperty('colorSunday') ? app.settings.colorSunday : DEFAULT_COLOR_FOLLY,
         "CLAY_COLOR_SATURDAY": app.settings.hasOwnProperty('colorSaturday') ? app.settings.colorSaturday : DEFAULT_COLOR_FOLLY,
         "CLAY_COLOR_US_FEDERAL": app.settings.hasOwnProperty('colorUSFederal') ? app.settings.colorUSFederal : DEFAULT_COLOR_FOLLY,
+        "HOLIDAYS": (function() {
+            var color = app.settings.hasOwnProperty('colorUSFederal') ? app.settings.colorUSFederal : DEFAULT_COLOR_FOLLY;
+            var built = holidayMask.build({
+                startMon: app.settings.weekStartDay === 'mon',
+                prevWeek: app.settings.firstWeek === 'prev',
+                enabled: color !== DEFAULT_COLOR_WHITE
+            }, new Date());
+            return holidayMask.pack(built.anchor, built.mask);
+        })(),
         "CLAY_COLOR_TIME": app.settings.hasOwnProperty('colorTime') ? app.settings.colorTime : DEFAULT_COLOR_WHITE,
         "CLAY_DAY_NIGHT_SHADING": app.settings.hasOwnProperty('dayNightShading') ? app.settings.dayNightShading : true,
         "CLAY_FETCH_INTERVAL_MIN": parseInt(app.settings.fetchIntervalMin, 10) || 30

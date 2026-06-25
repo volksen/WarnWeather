@@ -5,7 +5,7 @@
 // no resend never runs off the end of the data. ES5 only (reaches the watch).
 
 var daysFromCivil = require('./serial-day.js');
-var usFederal = require('./us-federal.js');
+var registry = require('./registry.js');
 
 var WINDOW_DAYS = 28; // 4 weeks; 21 visible cells + 1 week headroom.
 
@@ -26,9 +26,10 @@ function todayCellIndex(now, startMon, prevWeek) {
 /**
  * Build the anchored holiday bitmask for the visible calendar window.
  *
- * @param {{startMon: boolean, prevWeek: boolean, enabled: boolean}} opts Calendar layout + enable.
+ * @param {{startMon: boolean, prevWeek: boolean, country: string, region: string, enabled: boolean}} opts
+ *   Calendar layout, selected holiday country/region, and enable flag.
  * @param {Date} now Current local date/time.
- * @returns {{anchor: number, mask: number}} Serial-day anchor and 28-bit mask (0 when disabled).
+ * @returns {{anchor: number, mask: number}} Serial-day anchor and 28-bit mask (0 when disabled or no provider).
  */
 function build(opts, now) {
     var iToday = todayCellIndex(now, opts.startMon, opts.prevWeek);
@@ -36,11 +37,15 @@ function build(opts, now) {
     var anchor = daysFromCivil(cell0.getFullYear(), cell0.getMonth() + 1, cell0.getDate());
 
     var mask = 0;
-    if (opts.enabled) {
+    var provider = registry.getProvider(opts.country);
+    // No provider resolves for 'none' or any not-yet-wired country, so those
+    // (and the disabled case) leave the mask empty with a still-valid anchor.
+    if (opts.enabled && provider) {
         var i;
+        var day;
         for (i = 0; i < WINDOW_DAYS; i++) {
-            var day = new Date(cell0.getFullYear(), cell0.getMonth(), cell0.getDate() + i);
-            if (usFederal.isHoliday(day)) {
+            day = new Date(cell0.getFullYear(), cell0.getMonth(), cell0.getDate() + i);
+            if (provider.isHoliday(day, opts.region)) {
                 mask |= (1 << i);
             }
         }

@@ -9,9 +9,10 @@
  * Whether a local civil date is an observed US-federal holiday.
  *
  * @param {Date} date A JS Date; only its local year/month/day/weekday are read.
+ * @param {string} [region] Ignored — US federal holidays are nationwide; accepted for the provider seam.
  * @returns {boolean} True when the date is a US-federal holiday.
  */
-function isHoliday(date) {
+function isHoliday(date, region) {
     var mon = date.getMonth();   // 0-11
     var mday = date.getDate();   // 1-31
     var wday = date.getDay();    // 0=Sun .. 6=Sat

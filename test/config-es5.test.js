@@ -14,6 +14,7 @@ const FILES = [
   'src/pkjs/config-ui/lib/defaults.js',
   'src/pkjs/config-ui/lib/show-when.js',
   'src/pkjs/config-ui/lib/engine.js',
+  'src/pkjs/settings/holiday-data.js',
   'src/pkjs/settings/schema.js',
   'src/pkjs/settings/blocks.js',
   'src/pkjs/settings/onbuild.js',

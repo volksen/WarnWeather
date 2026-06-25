@@ -12,5 +12,7 @@ module.exports = {
     LAST_SENT_SLEEP_KEY: 'lastSentSleep',
     LAST_SENT_PALETTE_KEY: 'lastSentPalette',
     LAST_SENT_CLAY_KEY: 'lastSentClaySettings',
-    DEV_STATS_KEY: 'devStats'
+    DEV_STATS_KEY: 'devStats',
+    HOLIDAY_CACHE_PREFIX: 'holidays_',
+    HOLIDAY_BACKOFF_PREFIX: 'holidaysBackoff_'
 };

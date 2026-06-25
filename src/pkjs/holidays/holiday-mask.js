@@ -1,0 +1,66 @@
+//
+// Builds the anchored 28-bit holiday bitmask the watch reads. The mask covers
+// 4 weeks starting at the displayed grid's top-left cell (cell-0); the extra
+// week beyond the visible 21 cells is forward headroom so a week rollover with
+// no resend never runs off the end of the data. ES5 only (reaches the watch).
+
+var daysFromCivil = require('./serial-day.js');
+var usFederal = require('./us-federal.js');
+
+var WINDOW_DAYS = 28; // 4 weeks; 21 visible cells + 1 week headroom.
+
+/**
+ * Index of today's calendar cell — mirrors config_n_today() on the watch.
+ *
+ * @param {Date} now Current local date/time.
+ * @param {boolean} startMon Week starts on Monday when true.
+ * @param {boolean} prevWeek Grid leads with the previous week when true.
+ * @returns {number} Cell index (0-20) holding today.
+ */
+function todayCellIndex(now, startMon, prevWeek) {
+    var wday = now.getDay(); // 0=Sun .. 6=Sat
+    var adj = startMon ? (wday + 6) % 7 : wday;
+    return prevWeek ? adj + 7 : adj;
+}
+
+/**
+ * Build the anchored holiday bitmask for the visible calendar window.
+ *
+ * @param {{startMon: boolean, prevWeek: boolean, enabled: boolean}} opts Calendar layout + enable.
+ * @param {Date} now Current local date/time.
+ * @returns {{anchor: number, mask: number}} Serial-day anchor and 28-bit mask (0 when disabled).
+ */
+function build(opts, now) {
+    var iToday = todayCellIndex(now, opts.startMon, opts.prevWeek);
+    var cell0 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - iToday);
+    var anchor = daysFromCivil(cell0.getFullYear(), cell0.getMonth() + 1, cell0.getDate());
+
+    var mask = 0;
+    if (opts.enabled) {
+        var i;
+        for (i = 0; i < WINDOW_DAYS; i++) {
+            var day = new Date(cell0.getFullYear(), cell0.getMonth(), cell0.getDate() + i);
+            if (usFederal.isHoliday(day)) {
+                mask |= (1 << i);
+            }
+        }
+    }
+
+    return { anchor: anchor, mask: mask >>> 0 };
+}
+
+/**
+ * Pack anchor + mask into 8 little-endian bytes for the HOLIDAYS AppMessage key.
+ *
+ * @param {number} anchor int32 serial-day anchor.
+ * @param {number} mask uint32 holiday bitmask.
+ * @returns {number[]} 8 byte values (0-255), LE: [anchor x4, mask x4].
+ */
+function pack(anchor, mask) {
+    return [
+        anchor & 0xFF, (anchor >>> 8) & 0xFF, (anchor >>> 16) & 0xFF, (anchor >>> 24) & 0xFF,
+        mask & 0xFF, (mask >>> 8) & 0xFF, (mask >>> 16) & 0xFF, (mask >>> 24) & 0xFF
+    ];
+}
+
+module.exports = { build: build, pack: pack };

@@ -83,6 +83,9 @@ test('holiday country selector: select, default US, None first, includes Sweden'
   const values = c.options.map((o) => o[1]);
   assert.ok(values.indexOf('SE') >= 0, 'Sweden (SE) missing');
   assert.ok(values.indexOf('US') >= 0, 'US missing');
+  // Guard the deliberate renames so an accidental un-rename fails loudly.
+  assert.equal(byKey('colorUSFederal').label, 'Holiday color');
+  assert.equal(byKey('holidayRegionUS').label, 'State');
 });
 
 test('holiday region selectors: gated to their country, default whole-country, ISO-3166-2', () => {

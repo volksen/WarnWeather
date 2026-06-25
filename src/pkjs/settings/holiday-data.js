@@ -62,6 +62,9 @@ var REGION_OPTIONS = {
     ['Schleswig-Holstein', 'DE-SH'],
     ['Thuringia', 'DE-TH']
   ],
+  // Austria's ISO-3166-2 subdivisions are numeric (AT-1..AT-9), unlike the alpha
+  // suffixes elsewhere — the future watch-side holiday consumer must not assume a
+  // uniform suffix shape across countries.
   AT: [
     ['Whole country', 'all'],
     ['Burgenland', 'AT-1'],

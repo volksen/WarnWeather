@@ -14,7 +14,10 @@ enum key {
     // Gust third line: presence is "does THIRD_LINE_TREND exist?" (persist_exists/
     // _delete) — intentionally NO THIRD_LINE_COUNT (a different presence convention
     // than the count-based LINE_/BAR_ channels) and NO color key (reuses LINE_COLOR).
-    THIRD_LINE_TREND
+    THIRD_LINE_TREND,
+    // Appended: holiday highlighting moved to PKJS — anchored bitmask of the
+    // visible calendar window (see calendar_layer.c / app_message.c).
+    HOLIDAY_ANCHOR, HOLIDAY_MASK
 };
 
 // Setters report whether the stored value actually changed so callers can
@@ -214,6 +217,22 @@ bool persist_set_num_entries(int val) {
 
 bool persist_set_current_temp(int val) {
     return write_int_if_changed(CURRENT_TEMP, val);
+}
+
+bool persist_set_holiday_anchor(int32_t val) {
+    return write_int_if_changed(HOLIDAY_ANCHOR, (int) val);
+}
+
+int32_t persist_get_holiday_anchor(void) {
+    return persist_exists(HOLIDAY_ANCHOR) ? (int32_t) persist_read_int(HOLIDAY_ANCHOR) : 0;
+}
+
+bool persist_set_holiday_mask(uint32_t val) {
+    return write_int_if_changed(HOLIDAY_MASK, (int) val);
+}
+
+uint32_t persist_get_holiday_mask(void) {
+    return persist_exists(HOLIDAY_MASK) ? (uint32_t) persist_read_int(HOLIDAY_MASK) : 0u;
 }
 
 bool persist_set_city(char *val) {

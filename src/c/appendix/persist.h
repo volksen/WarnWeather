@@ -86,3 +86,11 @@ bool persist_set_is_sleeping(bool sleeping);
 bool persist_get_radar_snooze();
 
 bool persist_set_radar_snooze(bool snooze);
+
+bool persist_set_holiday_anchor(int32_t val);
+
+int32_t persist_get_holiday_anchor(void);
+
+bool persist_set_holiday_mask(uint32_t val);
+
+uint32_t persist_get_holiday_mask(void);

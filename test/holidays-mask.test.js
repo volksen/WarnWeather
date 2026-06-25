@@ -62,3 +62,17 @@ test('pack is little-endian and round-trips', () => {
   assert.equal(anchor, 0x01020304);
   assert.equal(mask, 0xAABBCCDD);
 });
+
+test('windowYears returns one year normally', () => {
+  assert.deepEqual(
+    holidayMask.windowYears({ startMon: false, prevWeek: false }, new Date(2026, 5, 25)),
+    [2026]
+  );
+});
+
+test('windowYears returns two years when the window crosses into next year', () => {
+  assert.deepEqual(
+    holidayMask.windowYears({ startMon: false, prevWeek: false }, new Date(2026, 11, 28)),
+    [2026, 2027]
+  );
+});

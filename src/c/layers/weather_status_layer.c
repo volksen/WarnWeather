@@ -7,7 +7,6 @@
 
 #define FONT_18_OFFSET 7
 #define FONT_14_OFFSET 3
-#define CITY_INIT_WIDTH 100
 #define MARGIN 2
 // Width reserved for the snooze glyphs in place of the current-temp text.
 #define SNOOZE_BOX_W 24
@@ -29,13 +28,27 @@
 #define ARROW_W 6
 #endif
 
+// Overflow mode matching the previous TextLayer default. Centralized so it is
+// used identically for measurement and drawing; flip here if the long-city
+// parity check (see plan) shows the old layers wrapped instead of ellipsizing.
+#define STATUS_TEXT_OVERFLOW GTextOverflowModeTrailingEllipsis
+
+// Reference rects for inter-element layout (city sits between temp and sun).
 static GRect frame_curr_temp;
 static GRect frame_sun_event;
+// Draw rects: where each string is painted, in this layer's coordinate space
+// (formerly each child TextLayer's frame within the parent).
+static GRect frame_temp_draw;
+static GRect frame_city;
+static GRect frame_sun_draw;
+
+// Text buffers, file-scope so the update proc can paint them (formerly the
+// function-static buffers behind each TextLayer's text pointer).
+static char s_city_buffer[20];
+static char s_temp_buffer[8];
+static char s_sun_buffer[8];
 
 static Layer *s_weather_status_layer;
-static TextLayer *s_city_layer;
-static TextLayer *s_current_temp_layer;
-static TextLayer *s_next_sun_event_layer;
 
 static GPath *s_arrow_path = NULL;
 static const GPathInfo ARROW_PATH_INFO = {
@@ -51,21 +64,66 @@ static const GPathInfo ARROW_PATH_INFO = {
     }
 };
 
+static GFont temp_font(void) { return fonts_get_system_font(FONT_KEY_GOTHIC_18); }
+static GFont city_font(void) { return fonts_get_system_font(CITY_FONT_KEY); }
+static GFont sun_font(void)  { return fonts_get_system_font(SUN_EVENT_FONT_KEY); }
+
+static void current_temp_layer_refresh() {
+    if (persist_get_is_sleeping()) {
+        // Snooze glyphs are drawn in the update proc; blank the text and reserve
+        // a fixed box so the city label keeps its position. Only origin.x and
+        // size.w of frame_curr_temp are ever read (by city_layer_refresh).
+        s_temp_buffer[0] = '\0';
+        frame_temp_draw = GRect(MARGIN, -FONT_18_OFFSET, 0, 0);
+        frame_curr_temp = GRect(0, -FONT_18_OFFSET, SNOOZE_BOX_W + MARGIN, 24);
+        return;
+    }
+    snprintf(s_temp_buffer, sizeof(s_temp_buffer), "• %d",
+             config_localize_temp(persist_get_current_temp()));
+    GSize size = graphics_text_layout_get_content_size(
+        s_temp_buffer, temp_font(), GRect(0, 0, 100, 100),
+        STATUS_TEXT_OVERFLOW, GTextAlignmentLeft);
+    frame_temp_draw = GRect(MARGIN, -FONT_18_OFFSET, size.w, size.h);
+    frame_curr_temp = GRect(0, -FONT_18_OFFSET, size.w + MARGIN, size.h);
+}
+
+static void sun_event_layer_refresh() {
+    GRect bounds = layer_get_bounds(s_weather_status_layer);
+    // Time of the first sun event; zero when nothing is persisted yet.
+    time_t first_sun_event_time = 0;
+    persist_get_sun_event_times(&first_sun_event_time, 1);
+    struct tm *sun_time = localtime(&first_sun_event_time);
+    config_format_time(s_sun_buffer, sizeof(s_sun_buffer), sun_time);
+
+    GSize size = graphics_text_layout_get_content_size(
+        s_sun_buffer, sun_font(), GRect(0, 0, 100, 100),
+        STATUS_TEXT_OVERFLOW, GTextAlignmentLeft);
+    int y;
+    // emery: align sun-event baseline with 18px font metrics instead of 14px.
+#ifdef PBL_PLATFORM_EMERY
+    y = -FONT_18_OFFSET;
+#else
+    y = -FONT_14_OFFSET;
+#endif
+    frame_sun_draw  = GRect(bounds.size.w - MARGIN - ARROW_W - size.w, y,
+                            size.w + ARROW_W, size.h);
+    frame_sun_event = GRect(bounds.size.w - MARGIN - ARROW_W - size.w, y,
+                            size.w + ARROW_W + MARGIN, size.h);
+}
+
 static void city_layer_refresh() {
-    // Set the city text layer contents from storage
-    static char s_city_buffer[20];
     if (persist_get_city(s_city_buffer, sizeof(s_city_buffer)) <= 0) {
         s_city_buffer[0] = '\0';  // No city persisted yet (fresh install)
     }
-    text_layer_set_text(s_city_layer, s_city_buffer);
-
-    // Dynamic resizing
     GRect bounds = layer_get_bounds(s_weather_status_layer);
-    GSize size = text_layer_get_content_size(s_city_layer);
     int x = frame_curr_temp.origin.x + frame_curr_temp.size.w + MARGIN * 2;
+    int w = bounds.size.w - frame_curr_temp.size.w - frame_sun_event.size.w - MARGIN * 4;
+    GSize size = graphics_text_layout_get_content_size(
+        s_city_buffer, city_font(), GRect(0, 0, w, 100),
+        STATUS_TEXT_OVERFLOW, GTextAlignmentCenter);
     int y;
     int h;
-    // emery: align city text baseline with 18px font metrics instead of 14px metrics.
+    // emery: align city baseline with 18px font metrics instead of 14px.
 #ifdef PBL_PLATFORM_EMERY
     y = -FONT_18_OFFSET;
     h = size.h + FONT_18_OFFSET;
@@ -73,84 +131,12 @@ static void city_layer_refresh() {
     y = -FONT_14_OFFSET;
     h = size.h + FONT_14_OFFSET;
 #endif
-    int w = bounds.size.w - frame_curr_temp.size.w - frame_sun_event.size.w - MARGIN * 4;
-    text_layer_move_frame(s_city_layer, GRect(x, y, w, h));
+    frame_city = GRect(x, y, w, h);
 }
 
-static void current_temp_layer_refresh() {
-    static char s_temp_buffer[8];
-    if (persist_get_is_sleeping()) {
-        // Snooze glyphs are drawn in the update proc; blank the text and
-        // reserve a fixed box so the city label keeps its position. Only
-        // origin.x and size.w of frame_curr_temp are ever read (by
-        // city_layer_refresh); y/h are nominal.
-        text_layer_set_text(s_current_temp_layer, "");
-        frame_curr_temp = GRect(0, -FONT_18_OFFSET, SNOOZE_BOX_W + MARGIN, 24);
-        return;
-    }
-    snprintf(s_temp_buffer, sizeof(s_temp_buffer), "• %d", config_localize_temp(persist_get_current_temp()));
-    text_layer_set_text(s_current_temp_layer, s_temp_buffer);
-
-    // Dynamic resizing
-    text_layer_move_frame(s_current_temp_layer, GRect(0, 0, 100, 100));  // Make it big so content doesn't get clipped
-    GSize size = text_layer_get_content_size(s_current_temp_layer);
-    text_layer_move_frame(s_current_temp_layer, GRect(MARGIN, -FONT_18_OFFSET, size.w, size.h));
-    frame_curr_temp = GRect(0, -FONT_18_OFFSET, size.w + MARGIN, size.h);
-}
-
-static void sun_event_layer_refresh() {
-    GRect bounds = layer_get_bounds(s_weather_status_layer);
-    // Get the time of the first sun event; zero when nothing is persisted yet
-    time_t first_sun_event_time = 0;
-    persist_get_sun_event_times(&first_sun_event_time, 1);
-    struct tm *sun_time = localtime(&first_sun_event_time);
-
-    static char s_buffer[8];
-    config_format_time(s_buffer, sizeof(s_buffer), sun_time);
-
-    // Display this time on the TextLayer
-    text_layer_set_text(s_next_sun_event_layer, s_buffer);
-
-    // Dynamic resizing
-    text_layer_move_frame(s_next_sun_event_layer, GRect(0, 0, 100, 100));  // Make it big so content doesn't get clipped
-    GSize size = text_layer_get_content_size(s_next_sun_event_layer);
-    int y;
-    // emery: align sun-event text baseline with 18px font metrics instead of 14px metrics.
-#ifdef PBL_PLATFORM_EMERY
-    y = -FONT_18_OFFSET;
-#else
-    y = -FONT_14_OFFSET;
-#endif
-    text_layer_move_frame(s_next_sun_event_layer,
-        GRect(bounds.size.w - MARGIN - ARROW_W - size.w, y, size.w + ARROW_W, size.h));
-    frame_sun_event = GRect(bounds.size.w - MARGIN - ARROW_W - size.w, y, size.w + ARROW_W + MARGIN, size.h);
-}
-
-static void weather_status_layer_init(GRect bounds) {
-    // Set up the city text layer properties
-    int w = bounds.size.w;
-
-    // Current temperature
-    s_current_temp_layer = text_layer_create(GRect(MARGIN, -FONT_18_OFFSET, 40, 25));
-    text_layer_set_background_color(s_current_temp_layer, GColorClear);
-    text_layer_set_text_alignment(s_current_temp_layer, GTextAlignmentLeft);
-    text_layer_set_text_color(s_current_temp_layer, GColorWhite);
-    text_layer_set_font(s_current_temp_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
-
-    // City where weather was fetched
-    s_city_layer = text_layer_create(GRect(w/2 - CITY_INIT_WIDTH/2, -FONT_14_OFFSET, CITY_INIT_WIDTH, 25));
-    text_layer_set_background_color(s_city_layer, GColorClear);
-    text_layer_set_text_alignment(s_city_layer, GTextAlignmentCenter);
-    text_layer_set_text_color(s_city_layer, GColorWhite);
-    text_layer_set_font(s_city_layer, fonts_get_system_font(CITY_FONT_KEY));
-
-    // Time of next sun event (sunrise/sunset)
-    s_next_sun_event_layer = text_layer_create(GRect(w - MARGIN - 6 - 40, 4 - FONT_18_OFFSET, 40, 25));
-    text_layer_set_background_color(s_next_sun_event_layer, GColorClear);
-    text_layer_set_text_alignment(s_next_sun_event_layer, GTextAlignmentLeft);
-    text_layer_set_text_color(s_next_sun_event_layer, GColorWhite);
-    text_layer_set_font(s_next_sun_event_layer, fonts_get_system_font(SUN_EVENT_FONT_KEY));
-
+static void weather_status_layer_init() {
+    // Order matters: temp sets frame_curr_temp, sun sets frame_sun_event, and
+    // city reads both to center itself in the remaining space.
     current_temp_layer_refresh();
     sun_event_layer_refresh();
     city_layer_refresh();
@@ -160,10 +146,20 @@ static void weather_status_update_proc(Layer *layer, GContext *ctx) {
     MEMORY_LOG_HEAP("weather_status_update:enter");
     GRect bounds = layer_get_bounds(layer);
     int w = bounds.size.w;
+
+    graphics_context_set_text_color(ctx, GColorWhite);
     if (persist_get_is_sleeping()) {
         // Compact snooze glyphs in the slot the temperature text vacated.
         snooze_draw(ctx, GRect(MARGIN, 2, SNOOZE_BOX_W, bounds.size.h - 4), GColorWhite);
+    } else {
+        graphics_draw_text(ctx, s_temp_buffer, temp_font(), frame_temp_draw,
+                           STATUS_TEXT_OVERFLOW, GTextAlignmentLeft, NULL);
     }
+    graphics_draw_text(ctx, s_city_buffer, city_font(), frame_city,
+                       STATUS_TEXT_OVERFLOW, GTextAlignmentCenter, NULL);
+    graphics_draw_text(ctx, s_sun_buffer, sun_font(), frame_sun_draw,
+                       STATUS_TEXT_OVERFLOW, GTextAlignmentLeft, NULL);
+
     if (!s_arrow_path) {
         MEMORY_LOG_HEAP("weather_status_update:missing_arrow_path");
         return;
@@ -174,7 +170,7 @@ static void weather_status_update_proc(Layer *layer, GContext *ctx) {
     } else {
         gpath_rotate_to(s_arrow_path, 0);
     }
-    // emery: place arrow lower so it is vertically centered in the taller status row.
+    // emery: place arrow lower so it is vertically centered in the taller row.
 #ifdef PBL_PLATFORM_EMERY
     gpath_move_to(s_arrow_path, GPoint(w - 4, bounds.size.h - (ARROW_H / 2) - 4));
 #else
@@ -189,38 +185,28 @@ static void weather_status_update_proc(Layer *layer, GContext *ctx) {
 
 void weather_status_layer_create(Layer* parent_layer, GRect frame) {
     s_weather_status_layer = layer_create(frame);
-    GRect bounds = layer_get_bounds(s_weather_status_layer);
 
     s_arrow_path = gpath_create(&ARROW_PATH_INFO);
     if (!s_arrow_path) {
         APP_LOG(APP_LOG_LEVEL_ERROR, "weather_status_layer_create: failed to allocate arrow path");
     }
 
-    // Set up all the text layers
-    weather_status_layer_init(bounds);
-    layer_add_child(s_weather_status_layer, text_layer_get_layer(s_city_layer));
-    layer_add_child(s_weather_status_layer, text_layer_get_layer(s_current_temp_layer));
-    layer_add_child(s_weather_status_layer, text_layer_get_layer(s_next_sun_event_layer));
+    weather_status_layer_init();
     layer_set_update_proc(s_weather_status_layer, weather_status_update_proc);
-
-    // Add the weather status bar to its parent
     layer_add_child(parent_layer, s_weather_status_layer);
     MEMORY_LOG_HEAP("after_weather_status_layer_create");
 }
 
 void weather_status_layer_refresh() {
-    layer_mark_dirty(s_weather_status_layer);
     current_temp_layer_refresh();
     sun_event_layer_refresh();
     city_layer_refresh();
+    layer_mark_dirty(s_weather_status_layer);
     MEMORY_LOG_HEAP("after_weather_refresh");
 }
 
 void weather_status_layer_destroy() {
     MEMORY_LOG_HEAP("weather_status_layer_destroy:before");
-    text_layer_destroy(s_city_layer);
-    text_layer_destroy(s_current_temp_layer);
-    text_layer_destroy(s_next_sun_event_layer);
     if (s_arrow_path) {
         gpath_destroy(s_arrow_path);
         s_arrow_path = NULL;

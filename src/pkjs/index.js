@@ -448,6 +448,8 @@ function refreshHolidays() {
     if (!app.settings) { return; }
     var country = app.settings.hasOwnProperty('holidayCountry') ? app.settings.holidayCountry : 'US';
     if (country === 'none') { return; }
+    var color = app.settings.hasOwnProperty('colorUSFederal') ? app.settings.colorUSFederal : DEFAULT_COLOR_FOLLY;
+    if (color === DEFAULT_COLOR_WHITE) { return; }
     var provider = registry.getProvider(country);
     if (!provider) { return; }
     var years = holidayMask.windowYears({

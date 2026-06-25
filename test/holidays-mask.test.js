@@ -41,6 +41,8 @@ test('a cached observed holiday sets its bit (Fri Jul 3 2026)', () => {
   const bit = daysFromCivil(2026, 7, 3) - result.anchor;
   assert.ok(bit >= 0 && bit < 28);
   assert.equal((result.mask >>> bit) & 1, 1);
+  const bitSat = daysFromCivil(2026, 7, 4) - result.anchor;
+  assert.equal((result.mask >>> bitSat) & 1, 0);
 });
 
 test('empty cache yields mask 0 with a valid anchor (offline / pre-fetch)', () => {

@@ -1,6 +1,7 @@
 // src/pkjs/settings/schema.js — ES5, PKJS-parsed. WarnWeather's settings SoT.
 var meta = require('../../../package.json');
 var BMC_BADGE = require('./bmc-badge.js');
+var holidayData = require('./holiday-data.js');
 var versionLabel = 'v' + meta.version + (meta.buildProfile === 'dev' ? ' (dev)' : '');
 var HOURS = (function () { var o = [], h; for (h = 0; h < 24; h += 1) { o.push([(h < 10 ? '0' + h : String(h)) + ':00', String(h)]); } return o; })();
 // Color swatches (5 intensity bands) — shown only in the Multicolor hint.
@@ -195,7 +196,22 @@ module.exports = {
         { type: 'color', messageKey: 'colorToday', label: 'Today highlight', defaultValue: 0, capabilities: ['COLOR'], hint: 'Black (default) means match date color; any other value overrides it.' },
         { type: 'color', messageKey: 'colorSunday', label: 'Sunday color', defaultValue: 0xFF0055, capabilities: ['COLOR'] },
         { type: 'color', messageKey: 'colorSaturday', label: 'Saturday color', defaultValue: 0xFF0055, capabilities: ['COLOR'] },
-        { type: 'color', messageKey: 'colorUSFederal', label: 'US federal holidays color', defaultValue: 0xFF0055, capabilities: ['COLOR'], hint: 'White means disable.' }
+        { type: 'select', messageKey: 'holidayCountry', label: 'Holidays', defaultValue: 'US',
+          hint: 'Highlight public holidays for this country. Region-varying countries add a picker below.',
+          options: holidayData.COUNTRY_OPTIONS },
+        { type: 'select', messageKey: 'holidayRegionDE', label: 'Region', defaultValue: 'all', joinPrevious: true,
+          options: holidayData.REGION_OPTIONS.DE, showWhen: { key: 'holidayCountry', eq: 'DE' } },
+        { type: 'select', messageKey: 'holidayRegionAT', label: 'Region', defaultValue: 'all', joinPrevious: true,
+          options: holidayData.REGION_OPTIONS.AT, showWhen: { key: 'holidayCountry', eq: 'AT' } },
+        { type: 'select', messageKey: 'holidayRegionCH', label: 'Region', defaultValue: 'all', joinPrevious: true,
+          options: holidayData.REGION_OPTIONS.CH, showWhen: { key: 'holidayCountry', eq: 'CH' } },
+        { type: 'select', messageKey: 'holidayRegionES', label: 'Region', defaultValue: 'all', joinPrevious: true,
+          options: holidayData.REGION_OPTIONS.ES, showWhen: { key: 'holidayCountry', eq: 'ES' } },
+        { type: 'select', messageKey: 'holidayRegionGB', label: 'Region', defaultValue: 'all', joinPrevious: true,
+          options: holidayData.REGION_OPTIONS.GB, showWhen: { key: 'holidayCountry', eq: 'GB' } },
+        { type: 'select', messageKey: 'holidayRegionUS', label: 'State', defaultValue: 'all', joinPrevious: true,
+          options: holidayData.REGION_OPTIONS.US, showWhen: { key: 'holidayCountry', eq: 'US' } },
+        { type: 'color', messageKey: 'colorUSFederal', label: 'Holiday color', defaultValue: 0xFF0055, capabilities: ['COLOR'], hint: 'White means disable.' }
       ] }
     ] },
     { id: 'more', label: 'More', sections: [

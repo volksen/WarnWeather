@@ -16,7 +16,7 @@ const rainTier = require('../src/pkjs/weather/rain-tier');
 // status + sun + radar + (first-send) palette all bundle together.
 //
 // This guard caught the gust-third-line overflow: the inbox was sized for
-// bundled forecast+radar before the 48-byte gust series existed, so DWD+wind
+// bundled forecast+radar before the 24-byte gust series existed, so DWD+wind
 // silently overflowed (APP_MSG_BUFFER_OVERFLOW → "Message dropped!").
 
 const N = 24; // provider.numEntries
@@ -58,14 +58,13 @@ function dictSize(payload) {
 
 /** Build the heaviest single AppMessage the phone can emit (DWD + wind). */
 function buildHeaviestBundle() {
-  function bytes16(n) { // n int16 values → little-endian byte array
-    return Array.prototype.slice.call(new Uint8Array(new Int16Array(n).buffer));
-  }
   const range = Array.from({ length: N }, function(_, i) { return i; });
 
   // Base forecast payload as provider.getPayload emits it (pre-series).
   const payload = {
-    TEMP_TREND_INT16: bytes16(range),
+    TEMP_TREND_UINT8: range.map(function() { return 200; }), // 24 bytes
+    TEMP_MIN: -10,
+    TEMP_MAX: 35,
     PRECIP_TREND_UINT8: range.map(function() { return 100; }),
     RAIN_TREND_UINT8: range.map(function() { return 50; }),
     WIND_TREND_UINT8: range.map(function() { return 60; }),

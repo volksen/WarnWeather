@@ -33,7 +33,9 @@ var KEYS = require('../src/pkjs/storage-keys.js');
 devStats.setEnabled(true);
 
 var payload = {
-    TEMP_TREND_INT16: [1, 2],
+    TEMP_TREND_UINT8: [200, 200],
+    TEMP_MIN: -10,
+    TEMP_MAX: 35,
     PRECIP_TREND_UINT8: [3],
     RAIN_TREND_UINT8: [4],
     FORECAST_START: 100,

@@ -9,6 +9,10 @@
 #define MT_AM_PM 7
 #define MT_TIME_LECO 2
 #define MT_AM_PM_LECO 2
+// emery: per-font vertical nudge for the enlarged custom Roboto/Bitham fonts, whose
+// metrics differ from the stock-49 calibration of MT_TIME. Tuned visually; start at 0.
+#define MT_TIME_ROBOTO 0
+#define MT_TIME_BITHAM 0
 
 
 static Layer *s_container_layer;
@@ -68,10 +72,15 @@ void time_layer_tick() {
     int text_top = -MT_TIME + (bounds.size.h/2 - text_h/2);
     int text_left = bounds.size.w / 2 - content_w / 2;
 
-    // emery: nudge LECO time text upward slightly to keep optical centering.
+    // emery: nudge custom/LECO time text vertically to keep optical centering, since each
+    // font's metrics differ from the stock-49 MT_TIME calibration.
 #ifdef PBL_PLATFORM_EMERY
     if (g_config->time_font == TIME_FONT_LECO) {
         text_top -= MT_TIME_LECO;
+    } else if (g_config->time_font == TIME_FONT_ROBOTO) {
+        text_top -= MT_TIME_ROBOTO;
+    } else if (g_config->time_font == TIME_FONT_BITHAM) {
+        text_top -= MT_TIME_BITHAM;
     }
 #endif
 

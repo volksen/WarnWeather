@@ -97,7 +97,54 @@ int config_n_today() {
     return wday;
 }
 
+#ifdef PBL_PLATFORM_EMERY
+// emery: no stock Roboto/Bitham font is larger than 49/42, so on Emery's larger screen
+// these options render via enlarged custom font resources (LECO uses stock LECO_60). The
+// selected custom font is lazy-loaded and cached; the previously cached font is unloaded
+// when the selection changes, so only one custom font is ever resident.
+static GFont s_custom_time_font = NULL;
+static int s_custom_time_font_for = -1;  // TimeFont currently cached, or -1 for none
+
+static void config_unload_custom_time_font(void) {
+    if (s_custom_time_font) {
+        fonts_unload_custom_font(s_custom_time_font);
+        s_custom_time_font = NULL;
+        s_custom_time_font_for = -1;
+    }
+}
+
+// Returns the enlarged custom font for ROBOTO/BITHAM, or NULL for LECO (caller falls back
+// to the stock system font). Loads lazily and caches the handle across calls.
+static GFont config_emery_custom_time_font(int16_t font_index) {
+    uint32_t res_id = 0;
+    if (font_index == TIME_FONT_ROBOTO)
+        res_id = RESOURCE_ID_FONT_ROBOTO_BOLD_80;
+    else if (font_index == TIME_FONT_BITHAM)
+        res_id = RESOURCE_ID_FONT_MONTSERRAT_MEDIUM_72;
+    if (res_id == 0) {                 // LECO: no custom font
+        config_unload_custom_time_font();
+        return NULL;
+    }
+    if (s_custom_time_font_for != font_index) {
+        config_unload_custom_time_font();
+        s_custom_time_font = fonts_load_custom_font(resource_get_handle(res_id));
+        s_custom_time_font_for = font_index;
+    }
+    return s_custom_time_font;
+}
+#endif
+
 GFont config_time_font() {
+    int16_t font_index = g_config->time_font;
+    if (font_index < 0 || font_index > TIME_FONT_BITHAM)
+        font_index = TIME_FONT_ROBOTO;
+
+#ifdef PBL_PLATFORM_EMERY
+    GFont custom = config_emery_custom_time_font(font_index);
+    if (custom)
+        return custom;
+#endif
+
     const char *font_keys[] = {
         [TIME_FONT_ROBOTO] = FONT_KEY_ROBOTO_BOLD_SUBSET_49,
 #ifdef PBL_PLATFORM_EMERY
@@ -108,10 +155,6 @@ GFont config_time_font() {
 #endif
         [TIME_FONT_BITHAM] = FONT_KEY_BITHAM_42_MEDIUM_NUMBERS
     };
-    int16_t font_index = g_config->time_font;
-    const int16_t font_count = (int16_t)(sizeof(font_keys) / sizeof(font_keys[0]));
-    if (font_index < 0 || font_index >= font_count)
-        font_index = TIME_FONT_ROBOTO;
     return fonts_get_system_font(font_keys[font_index]);
 }
 

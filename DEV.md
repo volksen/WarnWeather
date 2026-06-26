@@ -56,6 +56,11 @@ Build and install on emulator (default: basalt):
 mise install-emulator
 ```
 
+Open the running emulator app's config (settings) page in a browser (default: basalt):
+```bash
+mise config-emulator
+```
+
 Stop running emulator and phone simulator:
 ```bash
 mise kill-emulator
@@ -163,6 +168,31 @@ Stream logs after install:
 ```bash
 mise install-emulator --logs
 ```
+
+### Config page (emulator)
+
+Open the running emulator app's live config (settings) page in your browser — drives
+the real PKJS-served page from the running emulator. Install the app on that platform
+first (e.g. `mise install-emulator aplite`), since the config URL comes from the running
+app.
+
+Default (basalt):
+```bash
+mise config-emulator
+```
+
+Specific platform (positional, like `install-emulator`/`screenshot-emulator`):
+```bash
+mise config-emulator aplite
+```
+
+Platform from env var:
+```bash
+PEBBLE_EMULATOR=aplite mise config-emulator
+```
+
+Unlike `mise preview-config`, which renders a *static* HTML snapshot of the config UI to
+`build/` without the emulator, this opens the live page the running app serves.
 
 ### Kill emulator
 

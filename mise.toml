@@ -66,6 +66,11 @@ description = "Build and install on emulator (default profile: dev, emulator: ba
 alias = "emu"
 run = "pebble wipe && scripts/install-emulator.sh"
 
+[tasks.config-emulator]
+description = "Open the running emulator app's config (settings) page in a browser (default: basalt)"
+alias = "config"
+run = "scripts/config-emulator.sh"
+
 [tasks.kill-emulator]
 description = "Stop running emulator and phone simulator"
 alias = "kill"

@@ -10,7 +10,9 @@
 #define MT_TIME_LECO 2
 #define MT_AM_PM_LECO 2
 // emery: per-font vertical nudge for the enlarged custom Roboto/Bitham fonts, whose
-// metrics differ from the stock-49 calibration of MT_TIME. Tuned visually; start at 0.
+// metrics differ from the stock-49 calibration of MT_TIME. 0 is the measured-final
+// value: on the emulator Roboto-80 (54px) and Montserrat-72 (55px) digits already
+// share LECO-60's top edge, so no nudge is needed. Change only if a font is resized.
 #define MT_TIME_ROBOTO 0
 #define MT_TIME_BITHAM 0
 

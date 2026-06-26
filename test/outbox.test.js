@@ -28,3 +28,16 @@ test('forecast category carries the temp uint8 trend + min/max label keys', func
     assert.ok(forecastCategory.keys.includes('TEMP_MAX'));
     assert.ok(!forecastCategory.keys.includes('TEMP_TREND_INT16'));
 });
+
+test('WEATHER_CATEGORIES has no palette category (palette rides the Clay message)', function() {
+    const palette = WEATHER_CATEGORIES.find(function(c) { return c.name === 'palette'; });
+    assert.equal(palette, undefined);
+});
+
+test('no weather category carries palette keys', function() {
+    const carriers = WEATHER_CATEGORIES.filter(function(c) {
+        return c.keys.indexOf('BAR_PALETTE_UINT8') !== -1
+            || c.keys.indexOf('RADAR_PALETTE_UINT8') !== -1;
+    });
+    assert.equal(carriers.length, 0);
+});

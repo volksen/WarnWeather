@@ -86,16 +86,16 @@ calling it directly. Exempt: `src/pkjs/clay/` is vendored and runs in the phone 
   is allocated from aplite's already-tiny heap, so 512 B is effectively a hard ceiling —
   you can't just bump it. An overflow is dropped silently (`APP_MSG_BUFFER_OVERFLOW` →
   "Message dropped!"). Worst realistic case is DWD + wind (gust + secondary line + radar +
-  status + sun + first-send palette) ≈381 B (≈131 B headroom; the six uint8 trend arrays
-  dominate at ~31 B each). `test/inbox-size.test.js` guards this: when
+  status + sun) ≈337 B (≈175 B headroom; the six uint8 trend arrays dominate at ~31 B
+  each). The palette now rides the Clay/settings message instead. `test/inbox-size.test.js`
+  guards both the weather and Clay bundles; when
   you grow the worst-case bundle, update its `buildHeaviestBundle()`, and treat bumping
   `inbox_size` as a last resort.
 - **Message boundary: settings ride the settings (Clay) message; weather data rides the
   weather message.** Config-derived values — colour palettes, formatting/display toggles,
   the holiday mask — belong in `sendClaySettings` (`outbox.sendClay`). The weather payload
-  carries only forecast/status/sun/radar/sleep. (The rain-bar/radar palette historically
-  rode the weather message; it is being moved onto the settings message — follow the rule,
-  not the legacy placement.)
+  carries only forecast/status/sun/radar/sleep. (The rain-bar/radar palette rides the Clay
+  message as of v1.4; `clay-payload.js` builds and sends it alongside the other settings.)
 - **A new telemetry setting must be added in two places or it's silently dropped:** the
   watch-side snapshot in `src/pkjs/telemetry.js` AND the Deno `.strip()` schema in
   `supabase/functions/telemetry-ingest/index.ts`.

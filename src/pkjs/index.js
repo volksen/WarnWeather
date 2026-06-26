@@ -23,7 +23,6 @@ var releaseNotifications = require('./release-notifications.js');
 var sleepWindow = require('./sleep-window.js');
 var claySettings = require('./clay-settings.js');
 var fixtureWeather = require('./fixture-weather.js');
-var paletteWire = require('./weather/palette-wire.js');
 var holidayMask = require('./holidays/holiday-mask.js');
 var registry = require('./holidays/registry.js');
 var buildClayPayload = require('./clay-payload.js').buildClayPayload;
@@ -190,8 +189,8 @@ Pebble.addEventListener('webviewclosed', function(e) {
 
     var oldRadarProvider = app.settings ? app.settings.radarProvider : undefined;
     // Capture the render-affecting settings before they're overwritten below so we can
-    // detect a change and force a resend (clearWeatherCaches also drops the palette
-    // cache, so a rainBarColor-only change is covered by the same tuple/path).
+    // detect a change and force a resend. Rain/radar colors are NOT here: they ride the
+    // Clay message and the watch persists them, so a color change needs no weather refetch.
     var prevRender = renderSignature(app.settings);
     claySettings.save(settings.parseResponse(e.response));  // This triggers the update in localStorage
     app.settings = claySettings.read();  // This reads from localStorage in sensible format
@@ -209,8 +208,8 @@ Pebble.addEventListener('webviewclosed', function(e) {
     var needsRefetch = providerOrLocationChanged || radarProviderChanged || renderSettingsChanged;
     if (needsRefetch) {
         // Location/provider/radar-provider/render-setting change makes the watch's
-        // current data (or chart) wrong; drop the last-sent caches (including radar
-        // and palette) so the next fetch resends every category.
+        // current data (or chart) wrong; drop the last-sent caches (including radar)
+        // so the next fetch resends every category.
         outbox.clearWeatherCaches();
     }
 
@@ -651,10 +650,6 @@ function fetch(provider, force) {
         withRainRadarTuples(provider, function(radarTuples) {
             var extras = radarTuples ? Object.assign({}, radarTuples) : {};
             extras.IS_SLEEPING = refreshLastIsSleeping();
-            // Rain-tier color palette (send-once category): per platform + the
-            // rainBarColor setting. Forecast bars + radar share it on the watch.
-            // Shared with the fixture path so the two can't drift.
-            Object.assign(extras, paletteWire.buildPaletteTuples(app.watchInfo, app.settings));
             provider.fetch(
                 function() {
                     // Sucess, update recent fetch time
@@ -709,8 +704,7 @@ function fetch(provider, force) {
 function renderSignature(settings) {
     if (!settings) { return ''; }
     return [settings.secondaryLine, settings.secondaryLineFill, settings.barSource,
-            settings.rainBarColor, settings.radarColor, settings.windScale,
-            settings.gustLine].join('|');
+            settings.windScale, settings.gustLine].join('|');
 }
 
 /**

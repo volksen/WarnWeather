@@ -352,8 +352,9 @@ void app_message_init() {
     // All changed categories ride in one inbound message (outbox.js bundles
     // them because the channel is half-duplex). The heaviest bundle is DWD +
     // wind: the gust THIRD_LINE rides on top of the secondary line, plus rain
-    // radar + status + sun + (first-send) palette — ~455 B. Sized with headroom
-    // for long city names. Guarded by test/inbox-size.test.js.
+    // radar + status + sun — ~337 B. Sized with headroom for long city names.
+    // The palette now rides the Clay message instead (see clay-payload.js).
+    // test/inbox-size.test.js is the authoritative computation.
     const int inbox_size = 512;
     const int outbox_size = dict_calc_buffer_size(2, sizeof(uint8_t), sizeof(uint8_t));
     APP_LOG(APP_LOG_LEVEL_INFO, "AppMessage buffer sizes: inbox=%d outbox=%d", inbox_size, outbox_size);

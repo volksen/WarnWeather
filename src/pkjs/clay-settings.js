@@ -241,7 +241,7 @@ function applyDevConfig(devConfig) {
         forceShowReleaseNotificationOnBoot: true,
         maxNotifiedVersion: true,
         resetV134WeekendHolidayColorMigration: true,
-        resetV132HolidayRegionKeyMigration: true,
+        resetV140HolidayRegionKeyMigration: true,
     };
 
     persistClay = read();

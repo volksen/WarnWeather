@@ -3,8 +3,16 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
+// holiday-mask → nager-source touches localStorage; install the mock before
+// any watch module loads (see change-detector.test.js for the pattern).
+global.localStorage = {
+  getItem: function(k) { return null; },
+  setItem: function(k, v) {},
+  removeItem: function(k) {}
+};
+
 const { applyForecastSeries } = require('../src/pkjs/forecast-series');
-const rainTier = require('../src/pkjs/weather/rain-tier');
+const { buildClayPayload } = require('../src/pkjs/clay-payload');
 
 // Regression guard for the AppMessage inbox size.
 //
@@ -13,7 +21,7 @@ const rainTier = require('../src/pkjs/weather/rain-tier');
 // bundle the phone can emit in a single fetch. The worst realistic case is the
 // DWD provider with the wind metric selected: wind adds the gust THIRD_LINE on
 // top of the secondary line, and DWD also supplies rain radar — so forecast +
-// status + sun + radar + (first-send) palette all bundle together.
+// status + sun + radar all bundle together.
 //
 // This guard caught the gust-third-line overflow: the inbox was sized for
 // bundled forecast+radar before the 24-byte gust series existed, so DWD+wind
@@ -92,10 +100,6 @@ function buildHeaviestBundle() {
   // Sleep state rides in the same bundle.
   payload.IS_SLEEPING = false;
 
-  // Palettes ride on the first send; emery (color) gets the full multicolor stops.
-  payload.BAR_PALETTE_UINT8 = rainTier.buildPackedPalette('emery', 'multicolor');
-  payload.RADAR_PALETTE_UINT8 = rainTier.buildPackedPalette('emery', 'multicolor');
-
   return payload;
 }
 
@@ -106,4 +110,23 @@ test('heaviest bundled payload (DWD + wind) fits the watch inbox', function() {
     size <= inbox,
     'bundled DWD+wind payload is ' + size + ' B but inbox_size is only ' + inbox +
     ' B — the message would be dropped (APP_MSG_BUFFER_OVERFLOW). Bump inbox_size.');
+});
+
+/** The Clay settings message now carries the palette tuples too. */
+function buildHeaviestClayMessage() {
+  return buildClayPayload({
+    temperatureUnits: 'c', timeLeadingZero: true, axisTimeFormat: '12h',
+    weekStartDay: 'mon', firstWeek: 'prev', timeFont: 'bitham', showQt: true,
+    btIcons: 'both', vibe: true, timeShowAmPm: true, dayNightShading: true,
+    fetchIntervalMin: '30', holidayCountry: 'US', holidaysEnabled: true,
+    rainBarColor: 'multicolor', radarColor: 'multicolor',
+  }, { platform: 'emery' }, new Date('2026-06-26T00:00:00Z'));
+}
+
+test('Clay settings message (with palette) fits the watch inbox', function() {
+  const inbox = readInboxSize();
+  const size = dictSize(buildHeaviestClayMessage());
+  assert.ok(
+    size <= inbox,
+    'Clay message is ' + size + ' B but inbox_size is only ' + inbox + ' B — bump inbox_size.');
 });

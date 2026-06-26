@@ -174,6 +174,80 @@ function mapGusts(json, startTime) {
     return out;
 }
 
+/**
+ * Build a minimal keyless Open-Meteo request for hourly UV index only. Uses the
+ * default best_match model (the main forecast's ecmwf_ifs025 pin omits UV, and
+ * DWD has no UV at all), mirroring the gust call's unixtime/GMT/forecast_days
+ * conventions so buckets align with the main window by timestamp.
+ * @param {number} lat Latitude in decimal degrees.
+ * @param {number} lon Longitude in decimal degrees.
+ * @returns {string} Fully-formed UV request URL.
+ */
+function buildUvUrl(lat, lon) {
+    return OPEN_METEO_BASE
+        + '?latitude=' + lat
+        + '&longitude=' + lon
+        + '&hourly=uv_index'
+        + '&timeformat=unixtime'
+        + '&timezone=GMT'
+        + '&forecast_days=2';
+}
+
+/**
+ * Extract a FORECAST_HOURS UV window aligned to a forecast start time, indexing the
+ * response's hourly uv_index by timestamp (so a feed whose offset differs still
+ * lines up). Missing/non-numeric buckets become null (getPayload coerces to 0).
+ * @param {Object} json Parsed Open-Meteo response carrying hourly.uv_index.
+ * @param {number} startTime Window start in epoch seconds.
+ * @returns {Array.<(number|null)>|null} UV values, or null when malformed.
+ */
+function mapUv(json, startTime) {
+    var hourly = json && json.hourly;
+    var times = hourly && hourly.time;
+    var uv = hourly && hourly.uv_index;
+    if (!hourly || !Array.isArray(times) || !Array.isArray(uv)) {
+        return null;
+    }
+    var byTime = {};
+    var i;
+    for (i = 0; i < times.length; i += 1) { byTime[times[i]] = uv[i]; }
+    var out = [];
+    var h;
+    var value;
+    for (h = 0; h < FORECAST_HOURS; h += 1) {
+        value = byTime[startTime + h * HOUR_SECONDS];
+        out.push(typeof value === 'number' ? value : null);
+    }
+    return out;
+}
+
+/**
+ * Fetch UV from Open-Meteo into provider.uvTrend, but only when provider.fetchUv
+ * is set (UV is on a line). Non-fatal: a failed/empty UV call just leaves uvTrend
+ * untouched, so the UV line stays off rather than failing the whole forecast.
+ * Shared by the Open-Meteo provider and the DWD fallback.
+ * @param {Object} provider Active provider (reads .fetchUv/.startTime, writes .uvTrend).
+ * @param {number} lat Latitude.
+ * @param {number} lon Longitude.
+ * @param {Function} done Continuation (always called exactly once).
+ * @returns {void}
+ */
+function fetchUvInto(provider, lat, lon, done) {
+    if (!provider.fetchUv) { done(); return; }
+    var uvUrl = buildUvUrl(lat, lon);
+    console.log('Requesting ' + uvUrl);
+    request(uvUrl, 'GET', function(resp) {
+        var uvs = null;
+        try { uvs = mapUv(JSON.parse(resp), provider.startTime); }
+        catch (ex) { uvs = null; }
+        if (uvs) { provider.uvTrend = uvs; }
+        done();
+    }, function(err) {
+        console.log('[!] Open-Meteo uv request failed: ' + JSON.stringify(err));
+        done();
+    });
+}
+
 OpenMeteoProvider.prototype.withProviderData = function(lat, lon, force, onSuccess, onFailure) {
     var url = buildForecastUrl(lat, lon);
     console.log('Requesting ' + url);
@@ -216,11 +290,11 @@ OpenMeteoProvider.prototype.withProviderData = function(lat, lon, force, onSucce
             if (gusts) {
                 this.gustTrend = gusts;
             }
-            onSuccess();
-        }).bind(this), function(gustError) {
+            fetchUvInto(this, lat, lon, onSuccess);
+        }).bind(this), (function(gustError) {
             console.log('[!] Open-Meteo gust request failed: ' + JSON.stringify(gustError));
-            onSuccess();
-        });
+            fetchUvInto(this, lat, lon, onSuccess);
+        }).bind(this));
     }).bind(this), function(error) {
         console.log('[!] Open-Meteo request failed: ' + JSON.stringify(error));
         onFailure(failure('provider_data', 'openmeteo_' + error.code));
@@ -232,5 +306,8 @@ module.exports = {
     buildForecastUrl: buildForecastUrl,
     buildGustUrl: buildGustUrl,
     mapGusts: mapGusts,
+    buildUvUrl: buildUvUrl,
+    mapUv: mapUv,
+    fetchUvInto: fetchUvInto,
     OpenMeteoProvider: OpenMeteoProvider
 };

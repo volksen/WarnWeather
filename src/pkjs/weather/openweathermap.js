@@ -109,6 +109,9 @@ OpenWeatherMapProvider.prototype.withProviderData = function(lat, lon, force, on
         this.gustTrend = weatherData.hourly.map(function(entry) {
             return (entry.wind_gust || 0) * 1.60934; // units=imperial → mph; normalize to km/h
         });
+        this.uvTrend = weatherData.hourly.map(function(entry) {
+            return typeof entry.uvi === 'number' ? entry.uvi : 0; // OWM One Call hourly UV index
+        });
         this.startTime = weatherData.hourly[0].dt;
         this.currentTemp = weatherData.current.temp;
         onSuccess();

@@ -153,6 +153,9 @@ WundergroundProvider.prototype.withProviderData = function(lat, lon, force, onSu
                     var wspdMph = typeof entry.wspd === 'number' ? entry.wspd : 0;
                     return Math.max(gustMph, wspdMph) * 1.60934;
                 });
+                this.uvTrend = forecast.map(function(entry) {
+                    return typeof entry.uv_index === 'number' ? entry.uv_index : 0;
+                });
                 this.startTime = forecast[0].fcst_valid;
                 this.currentTemp = currentTemp;
                 onSuccess();

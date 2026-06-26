@@ -638,6 +638,8 @@ function fetch(provider, force) {
 
     console.log('Fetching from ' + provider.name);
     app.fetchInProgress = true;
+    // Tell providers whether to spend a request on UV (DWD/Open-Meteo fallback).
+    provider.fetchUv = forecastSeries.needsUv(app.settings);
     var fetchStart = Date.now();
     var attempt = incrementFetchAttemptCounter();
     var fetchStatus = {
@@ -703,8 +705,8 @@ function fetch(provider, force) {
  */
 function renderSignature(settings) {
     if (!settings) { return ''; }
-    return [settings.secondaryLine, settings.secondaryLineFill, settings.barSource,
-            settings.windScale, settings.gustLine].join('|');
+    return [settings.secondaryLine, settings.thirdLine, settings.secondaryLineFill,
+            settings.barSource, settings.windScale].join('|');
 }
 
 /**

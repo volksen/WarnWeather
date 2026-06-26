@@ -178,6 +178,9 @@ var WeatherProvider = function() {
     for (var gustIdx = 0; gustIdx < this.numEntries; gustIdx += 1) {
         this.gustTrend[gustIdx] = 0;
     }
+    // UV is opt-in and not every provider has it: leave it empty so getPayload
+    // emits an empty UV series (→ the UV line stays off) unless a provider fills it.
+    this.uvTrend = [];
 };
 
 WeatherProvider.prototype.gpsEnable = function() {
@@ -629,6 +632,11 @@ WeatherProvider.prototype.getPayload = function() {
     var gusts = this.gustTrend.slice(0, this.numEntries).map(function(kmhPerHour) {
         return clampByte(kmhPerHour || 0); // clampByte rounds + clamps to 0..255
     });
+    var uvs = (this.uvTrend && this.uvTrend.length)
+        ? this.uvTrend.slice(0, this.numEntries).map(function(uvIndex) {
+            return clampByte((uvIndex || 0) * 10); // UV index ×10 (tenths); forecast-series scales vs UV 11.0
+        })
+        : [];
     var tempEnc = forecastSeries.tempTrendToBytes(temps);
     var sunEventsIntView = new Int32Array(this.sunEvents.map(function(sunEvent) {
         return sunEvent.date.getTime() / 1000; // Seconds since epoch
@@ -642,6 +650,7 @@ WeatherProvider.prototype.getPayload = function() {
         RAIN_TREND_UINT8: rains, // Holds values within [0,255], representing 0.0..25.5 mm/h (5 mm cap on the watch; >5 mm signals overflow)
         WIND_TREND_UINT8: winds, // Transient PKJS-only: km/h integers; forecast-series consumes + deletes this before send
         GUST_TREND_UINT8: gusts, // Transient PKJS-only: km/h integers; forecast-series consumes + deletes this before send
+        UV_TREND_UINT8: uvs, // Transient PKJS-only: UV tenths; forecast-series consumes + deletes before send
         FORECAST_START: this.startTime,
         NUM_ENTRIES: this.numEntries,
         CURRENT_TEMP: Math.round(this.currentTemp),

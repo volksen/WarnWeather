@@ -1,6 +1,7 @@
 var WeatherProvider = require('./provider.js');
 var request = WeatherProvider.request;
 var failure = WeatherProvider.failure;
+var openmeteo = require('./openmeteo.js');
 
 var BRIGHTSKY_BASE = 'https://api.brightsky.dev';
 var MAX_DIST_METERS = 500000;
@@ -88,7 +89,7 @@ DwdProvider.prototype.withProviderData = function(lat, lon, force, onSuccess, on
             this.gustTrend = hourly.map(function(e) { return e.wind_gust_speed || 0; }); // Brightsky wind_gust_speed is km/h
             this.startTime = Math.floor(Date.parse(hourly[0].timestamp) / 1000);
             this.currentTemp = currentTempF;
-            onSuccess();
+            openmeteo.fetchUvInto(this, lat, lon, onSuccess);
         }).bind(this), onFailure);
     }).bind(this), onFailure);
 };

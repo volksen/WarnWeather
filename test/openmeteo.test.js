@@ -139,6 +139,29 @@ test('mapGusts returns null on malformed input', () => {
   assert.equal(openmeteo.mapGusts(null, BASE), null);
 });
 
+test('buildUvUrl requests only uv_index from the keyless best_match model', () => {
+  const url = openmeteo.buildUvUrl(52.52, 13.41);
+  assert.match(url, /[?&]hourly=uv_index(&|$)/);
+  assert.doesNotMatch(url, /models=/);          // best_match (DWD/ecmwf both lack UV)
+  assert.match(url, /[?&]forecast_days=2(&|$)/); // same 48-bucket window as gusts
+});
+
+test('mapUv aligns uv_index to the forecast start by timestamp', () => {
+  const time = [], uv_index = [];
+  for (let i = 0; i < 26; i += 1) { time.push(BASE + i * 3600); uv_index.push(i); }
+  const out = openmeteo.mapUv({ hourly: { time, uv_index } }, BASE + 3600); // start one hour in
+  assert.equal(out.length, 24);
+  assert.equal(out[0], 1);   // bucket at start
+  assert.equal(out[23], 24);
+});
+
+test('mapUv: missing/non-numeric buckets become null; malformed → null', () => {
+  const out = openmeteo.mapUv({ hourly: { time: [BASE, BASE + 3600], uv_index: [null, 5] } }, BASE);
+  assert.equal(out[0], null);
+  assert.equal(out[1], 5);
+  assert.equal(openmeteo.mapUv({ hourly: { time: [BASE] } }, BASE), null); // no uv_index array
+});
+
 const WeatherProvider = require('../src/pkjs/weather/provider.js');
 const OpenMeteoProvider = openmeteo.OpenMeteoProvider;
 

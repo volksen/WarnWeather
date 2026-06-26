@@ -51,10 +51,10 @@ test('radarStartEpoch overrides startEpoch for the radar window only', () => {
   assert.equal(t.RAIN_RADAR_START, 1300);
 });
 
-test('fixture gustKmh flows to a dashed gust third line when wind is selected', () => {
+test('fixture gustKmh flows to a dashed gust third line when wind+gust are selected', () => {
   const payload = getFixtureWeatherPayload(
-    makeFixture({ windKmh: [0, 25, 50], gustKmh: [0, 50, 100] }), // helper used by existing tests
-    { secondaryLine: 'wind', windScale: 'mid', barSource: 'off' }
+    makeFixture({ windKmh: [0, 25, 50], gustKmh: [0, 50, 100] }),
+    { secondaryLine: 'wind', thirdLine: 'gust', windScale: 'mid', barSource: 'off' }
   );
   // 0/50/100 km/h gusts @ 50 ceiling → 0/250/250 (uint8 0..250)
   const gust = payload.THIRD_LINE_TREND_UINT8;

@@ -1,202 +1,105 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildForecastSeries, applyForecastSeries } = require('../src/pkjs/forecast-series');
+const { buildForecastSeries, applyForecastSeries, needsUv } = require('../src/pkjs/forecast-series');
 
-const RAW = { precips: [0, 50, 100], rains: [0, 5, 20] }; // precip % and rain wire tenths
+// precip % + rain wire tenths + winds/gusts km/h + uv tenths (UV×10)
+const RAW = { precips: [0, 50, 100], rains: [0, 5, 20], winds: [0, 25, 50], gusts: [0, 50, 100], uvs: [0, 55, 110] };
 
-test('precip line on + fill on + rain bars', () => {
-  const out = buildForecastSeries(RAW, { secondaryLine: 'precip_prob', secondaryLineFill: true, barSource: 'rain' });
-  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [0, 125, 250]); // % * 10 → permille → byte
+test('secondary precip: line + fill + fill color, plus rain bars', () => {
+  const out = buildForecastSeries(RAW, { secondaryLine: 'precip_prob', thirdLine: 'off', secondaryLineFill: true, barSource: 'rain' });
+  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [0, 125, 250]); // %*10 → permille → byte
   assert.equal(out.SECONDARY_LINE_FILL, true);
-  assert.equal(typeof out.SECONDARY_LINE_COLOR, 'number');
-  assert.deepEqual(out.BAR_TREND_UINT8, [0, 85, 140]);            // rainPermille(0,5,20) → byte
+  assert.equal(out.SECONDARY_LINE_COLOR, 0x55AAFF);      // GColorPictonBlue
+  assert.equal(out.SECONDARY_LINE_FILL_COLOR, 0x0055AA); // GColorCobaltBlue
+  assert.deepEqual(out.BAR_TREND_UINT8, [0, 85, 140]);   // rainPermille(0,5,20) → byte
 });
 
-test('every wire byte is within 0..250', () => {
-  const out = buildForecastSeries(RAW, { secondaryLine: 'precip_prob', secondaryLineFill: true, barSource: 'rain' });
-  out.SECONDARY_LINE_TREND_UINT8.concat(out.BAR_TREND_UINT8).forEach(function(b) {
+test('secondary wind: km/h scaled to ceiling, never filled, yellow', () => {
+  const out = buildForecastSeries(RAW, { secondaryLine: 'wind', thirdLine: 'off', windScale: 'mid', secondaryLineFill: true, barSource: 'off' });
+  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [0, 125, 250]); // 0/25/50 @50 ceiling
+  assert.equal(out.SECONDARY_LINE_FILL, false);                    // precip-only
+  assert.equal(out.SECONDARY_LINE_COLOR, 0xFFFF00);                // GColorYellow
+});
+
+test('secondary gust: orange, scaled like wind', () => {
+  const out = buildForecastSeries(RAW, { secondaryLine: 'gust', thirdLine: 'off', windScale: 'mid', barSource: 'off' });
+  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [0, 250, 250]); // 0/50/100 @50 ceiling, clamped
+  assert.equal(out.SECONDARY_LINE_COLOR, 0xFF5500);                // GColorOrange
+});
+
+test('secondary uv: scaled against UV 11.0 (110 tenths), magenta', () => {
+  const out = buildForecastSeries(RAW, { secondaryLine: 'uv', thirdLine: 'off', barSource: 'off' });
+  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [0, 125, 250]); // 0/55/110 tenths @110 ceiling
+  assert.equal(out.SECONDARY_LINE_COLOR, 0xFF00FF);                // GColorMagenta
+});
+
+test('third line off: empty third trend, no third color emitted', () => {
+  const out = buildForecastSeries(RAW, { secondaryLine: 'precip_prob', thirdLine: 'off', barSource: 'off' });
+  assert.deepEqual(out.THIRD_LINE_TREND_UINT8, []);
+  assert.equal('THIRD_LINE_COLOR' in out, false);
+});
+
+test('third line gust over secondary wind: both present, third carries its color', () => {
+  const out = buildForecastSeries(RAW, { secondaryLine: 'wind', thirdLine: 'gust', windScale: 'mid', barSource: 'off' });
+  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [0, 125, 250]); // wind
+  assert.deepEqual(out.THIRD_LINE_TREND_UINT8, [0, 250, 250]);    // gust, same ceiling
+  assert.equal(out.THIRD_LINE_COLOR, 0xFF5500);                   // GColorOrange (gust)
+});
+
+test('third line uv over secondary precip: independent scales', () => {
+  const out = buildForecastSeries(RAW, { secondaryLine: 'precip_prob', thirdLine: 'uv', secondaryLineFill: true, barSource: 'off' });
+  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [0, 125, 250]); // precip %
+  assert.deepEqual(out.THIRD_LINE_TREND_UINT8, [0, 125, 250]);    // uv tenths @110
+  assert.equal(out.THIRD_LINE_COLOR, 0xFF00FF);                   // GColorMagenta
+});
+
+test('third line equal to secondary is treated as off (defensive: engine excludes it)', () => {
+  const out = buildForecastSeries(RAW, { secondaryLine: 'wind', thirdLine: 'wind', windScale: 'mid', barSource: 'off' });
+  assert.deepEqual(out.THIRD_LINE_TREND_UINT8, []);
+  assert.equal('THIRD_LINE_COLOR' in out, false);
+});
+
+test('absent metric data → that line renders off (empty), no throw (UV via DWD fallback failure)', () => {
+  const out = buildForecastSeries({ precips: [0, 50], rains: [0, 0] }, { secondaryLine: 'uv', thirdLine: 'off', barSource: 'off' });
+  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, []); // no uvs → off (temperature-only degrade)
+});
+
+test('every secondary/third/bar wire byte is within 0..250', () => {
+  const out = buildForecastSeries(RAW, { secondaryLine: 'gust', thirdLine: 'uv', windScale: 'high', barSource: 'rain' });
+  out.SECONDARY_LINE_TREND_UINT8.concat(out.THIRD_LINE_TREND_UINT8).concat(out.BAR_TREND_UINT8).forEach(function(b) {
     assert.ok(b >= 0 && b <= 250, 'byte out of range: ' + b);
   });
 });
 
-test('line off → empty line trend + fill false', () => {
-  const out = buildForecastSeries(RAW, { secondaryLine: 'off', secondaryLineFill: true, barSource: 'rain' });
-  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, []);
-  assert.equal(out.SECONDARY_LINE_FILL, false);
-});
-
-test('bars disabled → empty bar trend', () => {
-  const out = buildForecastSeries(RAW, { secondaryLine: 'precip_prob', secondaryLineFill: false, barSource: 'off' });
-  assert.deepEqual(out.BAR_TREND_UINT8, []);
-});
-
-test('fill color follows the line metric: precip → CobaltBlue, off → black', () => {
-  const on = buildForecastSeries(RAW, { secondaryLine: 'precip_prob', secondaryLineFill: true, barSource: 'rain' });
-  assert.equal(on.SECONDARY_LINE_FILL_COLOR, 0x0055AA); // GColorCobaltBlue
-  const off = buildForecastSeries(RAW, { secondaryLine: 'off', secondaryLineFill: true, barSource: 'rain' });
-  assert.equal(off.SECONDARY_LINE_FILL_COLOR, 0x000000); // GColorBlack
-});
-
-test('applyForecastSeries swaps raw precip/rain keys for the render-ready series in place', () => {
+test('applyForecastSeries swaps raw keys for render-ready series in place, deletes transients incl UV', () => {
   const payload = {
-    TEMP_TREND_UINT8: [1, 2, 3],
-    PRECIP_TREND_UINT8: [0, 50, 100],
-    RAIN_TREND_UINT8: [0, 5, 20],
-    NUM_ENTRIES: 3
+    TEMP_TREND_UINT8: [1, 2, 3], NUM_ENTRIES: 3,
+    PRECIP_TREND_UINT8: [0, 50, 100], RAIN_TREND_UINT8: [0, 5, 20],
+    WIND_TREND_UINT8: [0, 25, 50], GUST_TREND_UINT8: [0, 50, 100], UV_TREND_UINT8: [0, 55, 110]
   };
-  const settings = { secondaryLine: 'precip_prob', secondaryLineFill: true, barSource: 'rain' };
-
-  const out = applyForecastSeries(payload, settings);
-
-  // Mutates and returns the same object the watch will ship.
+  const out = applyForecastSeries(payload, { secondaryLine: 'uv', thirdLine: 'wind', windScale: 'mid', barSource: 'off' });
   assert.equal(out, payload);
-  // Dead keys the watch no longer reads are removed.
-  assert.ok(!('PRECIP_TREND_UINT8' in out));
-  assert.ok(!('RAIN_TREND_UINT8' in out));
-  // The five render-ready series keys replace them.
-  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [0, 125, 250]);
-  assert.equal(typeof out.SECONDARY_LINE_COLOR, 'number');
-  assert.equal(out.SECONDARY_LINE_FILL, true);
-  assert.equal(out.SECONDARY_LINE_FILL_COLOR, 0x0055AA);
-  assert.deepEqual(out.BAR_TREND_UINT8, [0, 85, 140]);
-  // Unrelated keys are left untouched.
+  ['PRECIP_TREND_UINT8', 'RAIN_TREND_UINT8', 'WIND_TREND_UINT8', 'GUST_TREND_UINT8', 'UV_TREND_UINT8'].forEach(function(k) {
+    assert.ok(!(k in out), k + ' should be deleted before the wire');
+  });
+  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [0, 125, 250]); // uv
+  assert.deepEqual(out.THIRD_LINE_TREND_UINT8, [0, 125, 250]);    // wind
+  assert.equal(out.THIRD_LINE_COLOR, 0xFFFF00);                   // GColorYellow (wind)
   assert.deepEqual(out.TEMP_TREND_UINT8, [1, 2, 3]);
   assert.equal(out.NUM_ENTRIES, 3);
 });
 
-test('wind line: mid scale (50 km/h) maps km/h to permille, clamped, never filled', () => {
-  const raw = { precips: [], rains: [], winds: [0, 25, 50, 100] };
-  const out = buildForecastSeries(raw, { secondaryLine: 'wind', windScale: 'mid', secondaryLineFill: true, barSource: 'off' });
-  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [0, 125, 250, 250]); // 100 clamps to 250
-  assert.equal(out.SECONDARY_LINE_FILL, false);            // wind ignores the fill toggle
-  assert.equal(out.SECONDARY_LINE_COLOR, 0xFFFF00);        // GColorYellow
-  assert.equal(out.SECONDARY_LINE_FILL_COLOR, 0xFFFF00);   // unused (fill off), set to the line color
-});
-
-test('wind line: low scale = 30 km/h ceiling', () => {
-  const out = buildForecastSeries({ precips: [], rains: [], winds: [15, 30] }, { secondaryLine: 'wind', windScale: 'low', barSource: 'off' });
-  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [125, 250]);
-});
-
-test('wind line: high scale = 70 km/h ceiling', () => {
-  const out = buildForecastSeries({ precips: [], rains: [], winds: [35, 70] }, { secondaryLine: 'wind', windScale: 'high', barSource: 'off' });
-  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [125, 250]);
-});
-
-test('wind line: missing/unknown windScale falls back to mid (no divide-by-zero)', () => {
-  const out = buildForecastSeries({ precips: [], rains: [], winds: [50] }, { secondaryLine: 'wind', barSource: 'off' });
-  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [250]); // 50/50*1000 → 1000 → 250
-});
-
-test('applyForecastSeries deletes the transient WIND_TREND_UINT8 and renders the wind series', () => {
-  const payload = {
-    TEMP_TREND_UINT8: [1, 2, 3],
-    PRECIP_TREND_UINT8: [0, 50, 100],
-    RAIN_TREND_UINT8: [0, 5, 20],
-    WIND_TREND_UINT8: [0, 25, 50],
-    NUM_ENTRIES: 3
-  };
-  const out = applyForecastSeries(payload, { secondaryLine: 'wind', windScale: 'mid', barSource: 'off' });
-  assert.ok(!('WIND_TREND_UINT8' in out));   // never reaches the wire
-  assert.ok(!('PRECIP_TREND_UINT8' in out));
-  assert.ok(!('RAIN_TREND_UINT8' in out));
-  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [0, 125, 250]);
-  assert.equal(out.SECONDARY_LINE_FILL, false);
-});
-
-test('wind selected: gust third line shares the wind scale', () => {
-  const out = buildForecastSeries(
-    { precips: [0], rains: [0], winds: [0, 25, 50], gusts: [0, 50, 100] },
-    { secondaryLine: 'wind', windScale: 'mid', barSource: 'off' } // mid = 50 km/h
-  );
-  // wind: 0/25/50 km/h @50 ceiling → 0/500/1000 → 0/125/250
-  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [0, 125, 250]);
-  // gusts: 0/50/100 km/h @ SAME 50 ceiling → 0/1000/1000 → 0/250/250 (clamped)
-  assert.deepEqual(out.THIRD_LINE_TREND_UINT8, [0, 250, 250]);
-  // No color is emitted — the watch draws the gust line in a fixed white.
+test('applyForecastSeries clears a stale THIRD_LINE_COLOR when the third line turns off', () => {
+  const payload = { PRECIP_TREND_UINT8: [0], RAIN_TREND_UINT8: [0], THIRD_LINE_COLOR: 0xFF00FF };
+  const out = applyForecastSeries(payload, { secondaryLine: 'precip_prob', thirdLine: 'off', barSource: 'off' });
   assert.equal('THIRD_LINE_COLOR' in out, false);
 });
 
-test('wind high scale: gusts track the 70 km/h ceiling', () => {
-  const out = buildForecastSeries(
-    { precips: [0], rains: [0], winds: [0], gusts: [35, 70] },
-    { secondaryLine: 'wind', windScale: 'high', barSource: 'off' } // high = 70 km/h
-  );
-  assert.deepEqual(out.THIRD_LINE_TREND_UINT8, [125, 250]);
-});
-
-test('wind selected but gusts all zero/absent: gust line is off (no flat bottom line)', () => {
-  // All-zero gust series ⇒ empty (off), while the wind line is still drawn.
-  const allZero = buildForecastSeries(
-    { precips: [0], rains: [0], winds: [0, 25, 50], gusts: [0, 0, 0] },
-    { secondaryLine: 'wind', windScale: 'mid', barSource: 'off' }
-  );
-  assert.deepEqual(allZero.THIRD_LINE_TREND_UINT8, []);
-  assert.deepEqual(allZero.SECONDARY_LINE_TREND_UINT8, [0, 125, 250]);
-  // Absent gust array (provider supplied none) ⇒ also off, no throw.
-  const absent = buildForecastSeries(
-    { precips: [0], rains: [0], winds: [10, 20] },
-    { secondaryLine: 'wind', windScale: 'mid', barSource: 'off' }
-  );
-  assert.deepEqual(absent.THIRD_LINE_TREND_UINT8, []);
-});
-
-test('wind selected, gusts just above wind: both present and distinct', () => {
-  const out = buildForecastSeries(
-    { precips: [0], rains: [0], winds: [20, 30], gusts: [22, 33] },
-    { secondaryLine: 'wind', windScale: 'mid', barSource: 'off' } // 50 km/h
-  );
-  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [100, 150]);
-  assert.deepEqual(out.THIRD_LINE_TREND_UINT8, [110, 165]);
-});
-
-test('ragged input: shorter gust array than wind does not throw', () => {
-  const out = buildForecastSeries(
-    { precips: [0], rains: [0], winds: [10, 20, 30], gusts: [40] },
-    { secondaryLine: 'wind', windScale: 'mid', barSource: 'off' }
-  );
-  // Gust series is the length of the (shorter) gust input.
-  assert.deepEqual(out.THIRD_LINE_TREND_UINT8, [200]);
-});
-
-test('non-wind secondary line clears the gust third line', () => {
-  const precip = buildForecastSeries(
-    { precips: [0, 50], rains: [0, 0], winds: [10], gusts: [20] },
-    { secondaryLine: 'precip_prob', secondaryLineFill: false, barSource: 'off' }
-  );
-  assert.deepEqual(precip.THIRD_LINE_TREND_UINT8, []); // empty array clears it
-  const off = buildForecastSeries(
-    { precips: [0], rains: [0], winds: [10], gusts: [20] },
-    { secondaryLine: 'off', barSource: 'off' }
-  );
-  assert.deepEqual(off.THIRD_LINE_TREND_UINT8, []);
-});
-
-test('applyForecastSeries deletes transient GUST_TREND_UINT8 and emits the gust line', () => {
-  const payload = {
-    PRECIP_TREND_UINT8: [0], RAIN_TREND_UINT8: [0],
-    WIND_TREND_UINT8: [25], GUST_TREND_UINT8: [50]
-  };
-  const out = applyForecastSeries(payload, { secondaryLine: 'wind', windScale: 'mid', barSource: 'off' });
-  assert.equal('GUST_TREND_UINT8' in out, false);
-  assert.deepEqual(out.THIRD_LINE_TREND_UINT8, [250]); // 50 @ 50 ceiling → 1000 → 250
-});
-
-test('wind + gustLine off: gust third line suppressed, wind line intact', () => {
-  const out = buildForecastSeries(
-    { precips: [0], rains: [0], winds: [0, 25, 50], gusts: [0, 50, 100] },
-    { secondaryLine: 'wind', windScale: 'mid', gustLine: false, barSource: 'off' }
-  );
-  assert.deepEqual(out.THIRD_LINE_TREND_UINT8, []);
-  assert.deepEqual(out.SECONDARY_LINE_TREND_UINT8, [0, 125, 250]);
-});
-
-test('wind + gustLine undefined: defaults to on (gust line drawn)', () => {
-  const out = buildForecastSeries(
-    { precips: [0], rains: [0], winds: [0, 25, 50], gusts: [0, 50, 100] },
-    { secondaryLine: 'wind', windScale: 'mid', barSource: 'off' }
-  );
-  assert.deepEqual(out.THIRD_LINE_TREND_UINT8, [0, 250, 250]);
+test('needsUv: true iff uv is on either line', () => {
+  assert.equal(needsUv({ secondaryLine: 'uv', thirdLine: 'off' }), true);
+  assert.equal(needsUv({ secondaryLine: 'wind', thirdLine: 'uv' }), true);
+  assert.equal(needsUv({ secondaryLine: 'wind', thirdLine: 'gust' }), false);
+  assert.equal(needsUv(null), false);
 });
 
 const { permilleToByte, tempTrendToBytes } = require('../src/pkjs/forecast-series');

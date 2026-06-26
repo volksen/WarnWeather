@@ -19,9 +19,9 @@ const { buildClayPayload } = require('../src/pkjs/clay-payload');
 // All changed payload categories ride in ONE sendAppMessage (the channel is
 // half-duplex — see outbox.js), so the watch's inbox must hold the heaviest
 // bundle the phone can emit in a single fetch. The worst realistic case is the
-// DWD provider with the wind metric selected: wind adds the gust THIRD_LINE on
-// top of the secondary line, and DWD also supplies rain radar — so forecast +
-// status + sun + radar all bundle together.
+// DWD provider with secondary + third metric lines both active: two 24-byte
+// trends + THIRD_LINE_COLOR + rain bars + radar — so forecast + status + sun +
+// radar all bundle together.
 //
 // This guard caught the gust-third-line overflow: the inbox was sized for
 // bundled forecast+radar before the 24-byte gust series existed, so DWD+wind
@@ -87,9 +87,10 @@ function buildHeaviestBundle() {
       Array.prototype.slice.call(new Uint8Array(new Int32Array([1700000000, 1700040000]).buffer))),
   };
 
-  // PKJS resolves the render-ready series; wind selects gust third line + rain bars.
+  // PKJS resolves the render-ready series; worst case = secondary line + a
+  // distinct third line (two 24-byte trends + THIRD_LINE_COLOR) + rain bars.
   applyForecastSeries(payload, {
-    secondaryLine: 'wind', secondaryLineFill: false, barSource: 'rain', windScale: 'high',
+    secondaryLine: 'wind', thirdLine: 'gust', secondaryLineFill: false, barSource: 'rain', windScale: 'high',
   });
 
   // Radar (DWD supplies it) — two 24-slot trends + a start epoch.

@@ -46,14 +46,25 @@ test('lastFetch formats success / Never / failed-attempt-with-error', () => {
   });
   assert.ok(failed.indexOf('geocode') >= 0 && failed.indexOf('401') >= 0, 'shows error stage:code');
 });
-test('forecastPreview wind: gust dashed path drops out when gustLine is off', () => {
-  const base = { dayNightShading: false, barSource: 'off', secondaryLine: 'wind', windScale: 'mid' };
-  const withGust = B.forecastPreview(Object.assign({}, base, { gustLine: true }), { color: true });
-  const noGust   = B.forecastPreview(Object.assign({}, base, { gustLine: false }), { color: true });
-  assert.ok(withGust.indexOf('stroke-dasharray="5 2 1 2 1 2"') > -1, 'gust dash present when on');
-  assert.equal(noGust.indexOf('stroke-dasharray="5 2 1 2 1 2"'), -1, 'gust dash absent when off');
-  // Solid wind line stays in both.
-  assert.ok(noGust.indexOf('stroke="#FFFF55"') > -1, 'wind line still drawn when gust off');
+test('forecastPreview draws the secondary line per metric (solid, per-metric color)', () => {
+  const base = { dayNightShading: false, barSource: 'off', windScale: 'mid', thirdLine: 'off' };
+  assert.ok(B.forecastPreview(Object.assign({}, base, { secondaryLine: 'wind' }), { color: true }).indexOf('stroke="#FFFF55"') > -1, 'wind = yellow');
+  assert.ok(B.forecastPreview(Object.assign({}, base, { secondaryLine: 'gust' }), { color: true }).indexOf('stroke="#FF5500"') > -1, 'gust = orange');
+  assert.ok(B.forecastPreview(Object.assign({}, base, { secondaryLine: 'uv' }), { color: true }).indexOf('stroke="#FF00FF"') > -1, 'uv = magenta');
+});
+
+test('forecastPreview draws a dashed third line in its metric color, gated on thirdLine', () => {
+  const base = { dayNightShading: false, barSource: 'off', windScale: 'mid', secondaryLine: 'precip_prob' };
+  const withThird = B.forecastPreview(Object.assign({}, base, { thirdLine: 'gust' }), { color: true });
+  const noThird   = B.forecastPreview(Object.assign({}, base, { thirdLine: 'off' }), { color: true });
+  assert.ok(withThird.indexOf('stroke-dasharray') > -1, 'third line is dashed');
+  assert.ok(withThird.indexOf('stroke="#FF5500"') > -1, 'third line uses the gust color');
+  assert.ok(noThird.indexOf('stroke-dasharray') === -1, 'no dashed line when third is off');
+});
+
+test('forecastPreview never draws the third line as the same metric as the secondary', () => {
+  const svg = B.forecastPreview({ dayNightShading: false, barSource: 'off', windScale: 'mid', secondaryLine: 'wind', thirdLine: 'wind' }, { color: true });
+  assert.equal(svg.indexOf('stroke-dasharray'), -1, 'duplicate metric → no third line');
 });
 test('registers all four into PConf.blocks', () => {
   ['forecastPreview','radarPreview','devStats','lastFetch'].forEach((id) => assert.equal(typeof PConf.blocks.get(id), 'function'));

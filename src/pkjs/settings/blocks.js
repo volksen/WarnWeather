@@ -64,6 +64,8 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
         var precip = [68, 74, 64, 46, 30, 20, 14, 10, 12, 16, 22, 28];
         var wind = [12, 16, 22, 28, 25, 21, 17, 15, 19, 29, 34, 30];
         var rain = [2, 12, 6, 3, 1, 0.5, 0.2, 0, 0, 0, 0, 0];
+        var gust = [18, 24, 31, 38, 34, 29, 24, 22, 27, 39, 45, 41];
+        var uv = [0, 0, 1, 3, 5, 7, 8, 7, 5, 3, 1, 0];
         var n = temps.length, PX0 = 20, PX1 = 197, PT = 20, PB = 100, TH = 21;
         var X = function (i) { return PX0 + i * (PX1 - PX0) / (n - 1); };
         var tickX = function (h) { return PX0 + h * (PX1 - PX0) / TH; };
@@ -89,22 +91,39 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
                 e += rainBars(rain[i], PX0 + (i + 0.5) * cw - bw / 2, bw, PB, maxBar, rainWhite);
             }
         }
-        if (state.secondaryLine === 'precip_prob') {
-            var pp = precip.map(function (p, i) { return [X(i), PB - p / 100 * (PB - PT - 3)]; });
-            var pa = smooth(pp);
-            if (state.secondaryLineFill) {
-                e += '<path d="' + pa + ' L' + X(n - 1) + ',' + PB + ' L' + X(0) + ',' + PB + ' Z" fill="rgba(0,255,255,0.16)"></path>';
+        var windMax = state.windScale === 'low' ? 30 : (state.windScale === 'high' ? 70 : 50);
+        // metric → { sample series, full-scale max, preview stroke color, optional fill }
+        var METRIC = {
+            precip_prob: { vals: precip, max: 100, color: '#00FFFF', fill: 'rgba(0,255,255,0.16)' },
+            wind: { vals: wind, max: windMax, color: '#FFFF55' },
+            gust: { vals: gust, max: windMax, color: '#FF5500' },
+            uv: { vals: uv, max: 11, color: '#FF00FF' }
+        };
+        /**
+         * Build SVG path element(s) for one forecast metric line.
+         * @param {string} metric - One of precip_prob, wind, gust, uv.
+         * @param {boolean} dashed - Whether to render as a dashed third line.
+         * @param {boolean} allowFill - Whether to render the fill area (precip-only).
+         * @returns {string} SVG markup for the line (and optional fill area).
+         */
+        var lineFor = function (metric, dashed, allowFill) {
+            var m = METRIC[metric];
+            if (!m) { return ''; }
+            var pts = m.vals.map(function (v, i) { return [X(i), PB - Math.min(v, m.max) / m.max * (PB - PT - 3)]; });
+            var path = smooth(pts);
+            var out = '';
+            if (allowFill && metric === 'precip_prob' && state.secondaryLineFill && m.fill) {
+                out += '<path d="' + path + ' L' + X(n - 1) + ',' + PB + ' L' + X(0) + ',' + PB + ' Z" fill="' + m.fill + '"></path>';
             }
-            e += '<path d="' + pa + '" fill="none" stroke="#00FFFF" stroke-width="1.4"></path>';
-        } else if (state.secondaryLine === 'wind') {
-            var mx = state.windScale === 'low' ? 30 : (state.windScale === 'high' ? 70 : 50);
-            var wp = wind.map(function (w, i) { return [X(i), PB - Math.min(w, mx) / mx * (PB - PT - 3)]; });
-            if (state.gustLine !== false) {
-                var gp = wind.map(function (w, i) { return [X(i), PB - Math.min(w + 9, mx) / mx * (PB - PT - 3)]; });
-                e += '<path d="' + smooth(gp) + '" fill="none" stroke="#FFFFFF" stroke-width="1.4" stroke-dasharray="5 2 1 2 1 2" stroke-linecap="round"></path>';
-            }
-            e += '<path d="' + smooth(wp) + '" fill="none" stroke="#FFFF55" stroke-width="1.6"></path>';
+            var dash = dashed ? ' stroke-dasharray="5 2 1 2 1 2" stroke-linecap="round"' : '';
+            out += '<path d="' + path + '" fill="none" stroke="' + m.color + '" stroke-width="' + (dashed ? 1.4 : 1.6) + '"' + dash + '></path>';
+            return out;
+        };
+        // Third line (dashed) under the secondary line (solid), excluding a duplicate metric.
+        if (state.thirdLine && state.thirdLine !== 'off' && state.thirdLine !== state.secondaryLine) {
+            e += lineFor(state.thirdLine, true, false);
         }
+        e += lineFor(state.secondaryLine, false, true);
         e += '<path d="' + smooth(temps.map(function (t, i) { return [X(i), yT(t)]; })) + '" fill="none" stroke="#FF0055" stroke-width="2" stroke-linecap="round"></path>';
         e += '<circle cx="6" cy="8.5" r="2.7" fill="#E6E9EF"></circle>' + txt(11, 11.5, 9.5, '#FFFFFF', 'start', 700, '22°');
         e += txt(3, 31, 8, '#AEB4BD', 'start', 600, tmax + '°') + txt(3, PB - 1, 8, '#AEB4BD', 'start', 600, tmin + '°');

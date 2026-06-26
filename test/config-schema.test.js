@@ -13,7 +13,7 @@ const EXPECTED_KEYS = [
   'weekStartDay','firstWeek','colorToday','colorSunday','colorSaturday','holidaysEnabled','colorUSFederal',
   'holidayCountry','holidayRegion',
   'fetchIntervalMin','gpsCacheMin','sleepNightEnabled','sleepStartHour','sleepEndHour','fetch','locationMode','location',
-  'temperatureUnits','dayNightShading','secondaryLine','secondaryLineFill','windScale','gustLine',
+  'temperatureUnits','dayNightShading','secondaryLine','secondaryLineFill','windScale','thirdLine',
   'barSource','rainBarColor','provider','owmApiKey','radarProvider','radarColor',
   'showQt','vibe','btIcons','telemetryEnabled','devStatsEnabled','devStatsClear'
 ];
@@ -69,11 +69,38 @@ test('COLOR-capability + showWhen wiring', () => {
   assert.deepEqual(byKey('devStatsClear').showWhen, { key: 'devStatsEnabled', eq: true });
 });
 
-test('gustLine is a toggle defaulting on, shown only for the wind secondary line', () => {
-  const g = byKey('gustLine');
-  assert.equal(g.type, 'toggle');
-  assert.equal(g.defaultValue, true);
-  assert.deepEqual(g.showWhen, { key: 'secondaryLine', eq: 'wind' });
+test('secondaryLine is a 4-metric dropdown with no Off', () => {
+  const sec = byKey('secondaryLine');
+  assert.equal(sec.type, 'select');
+  assert.deepEqual(sec.options.map((o) => o[1]), ['precip_prob', 'wind', 'gust', 'uv']);
+  assert.equal(sec.defaultValue, 'precip_prob');
+});
+
+test('thirdLine derives options from secondaryLine, excluding it, with Off + default off', () => {
+  const third = byKey('thirdLine');
+  assert.equal(third.type, 'select');
+  assert.equal(third.defaultValue, 'off');
+  assert.equal(third.optionsFrom.byKey, 'secondaryLine');
+  const map = third.optionsFrom.map;
+  // Every secondary metric maps to Off + the OTHER three (never itself).
+  ['precip_prob', 'wind', 'gust', 'uv'].forEach((sec) => {
+    const vals = map[sec].map((o) => o[1]);
+    assert.equal(vals[0], 'off', sec + ' third options must start with off');
+    assert.ok(!vals.includes(sec), sec + ' must be excluded from its own third-line options');
+    assert.equal(vals.length, 4, sec + ' → off + 3 others');
+  });
+});
+
+test('UV hint explains the fixed 0-11 scale (parallel to precip percentage)', () => {
+  const hint = byKey('secondaryLine').hintByValue.uv;
+  assert.match(hint, /UV 11/);
+  assert.match(hint, /half-height/);
+});
+
+test('windScale shows whenever wind or gust is on either line', () => {
+  const pred = byKey('windScale').showWhen;
+  const keys = pred.any.map((p) => p.key + ':' + p.eq).sort();
+  assert.deepEqual(keys, ['secondaryLine:gust', 'secondaryLine:wind', 'thirdLine:gust', 'thirdLine:wind']);
 });
 
 test('holiday country selector: searchSelect, default DE, None first, includes US/Sweden', () => {

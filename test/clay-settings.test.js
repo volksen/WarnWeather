@@ -56,11 +56,11 @@ test('getDefaults includes windScale defaulting to mid', () => {
   assert.equal(claySettings.getDefaults(COLORS).windScale, 'mid');
 });
 
-test('getDefaults includes gustLine defaulting to true', () => {
+test('getDefaults includes thirdLine defaulting to off', () => {
   installFakeStorage();
   delete require.cache[require.resolve('../src/pkjs/clay-settings')];
   const claySettings = require('../src/pkjs/clay-settings');
-  assert.equal(claySettings.getDefaults(COLORS).gustLine, true);
+  assert.equal(claySettings.getDefaults(COLORS).thirdLine, 'off');
 });
 
 test('getDefaults includes gpsCacheMin defaulting to 30 minutes', () => {

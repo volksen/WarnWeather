@@ -38,3 +38,16 @@ test('buildClayPayload packs the holiday window as an 8-byte array', function() 
   assert.ok(Array.isArray(p.HOLIDAYS));
   assert.equal(p.HOLIDAYS.length, 8);
 });
+
+test('buildClayPayload includes the rain/radar palette tuples', function() {
+  const p = buildClayPayload(baseSettings(), { platform: 'emery' }, NOW);
+  assert.ok(Array.isArray(p.BAR_PALETTE_UINT8));
+  assert.ok(Array.isArray(p.RADAR_PALETTE_UINT8));
+  assert.equal(p.BAR_PALETTE_UINT8.length, 15);   // multicolor → 5 stops
+});
+
+test('buildClayPayload palette reflects rainBarColor', function() {
+  const s = baseSettings(); s.rainBarColor = 'white';
+  const p = buildClayPayload(s, { platform: 'emery' }, NOW);
+  assert.equal(p.BAR_PALETTE_UINT8.length, 3);    // white → single stop
+});

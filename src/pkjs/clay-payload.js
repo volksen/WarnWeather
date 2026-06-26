@@ -4,6 +4,7 @@
 
 var pebbleColors = require('./pebble-colors.js');
 var holidayMask = require('./holidays/holiday-mask.js');
+var paletteWire = require('./weather/palette-wire.js');
 
 var DEFAULT_COLOR_WHITE = pebbleColors.GColorWhite;
 var DEFAULT_COLOR_FOLLY = pebbleColors.GColorFolly;
@@ -17,7 +18,7 @@ var DEFAULT_COLOR_FOLLY = pebbleColors.GColorFolly;
  */
 function buildClayPayload(settings, watchInfo, now) {
     now = now || new Date();
-    return {
+    var payload = {
         "CLAY_CELSIUS": settings.temperatureUnits === 'c',
         "CLAY_TIME_LEAD_ZERO": settings.timeLeadingZero,
         "CLAY_AXIS_12H": settings.axisTimeFormat === '12h',
@@ -49,6 +50,10 @@ function buildClayPayload(settings, watchInfo, now) {
         "CLAY_DAY_NIGHT_SHADING": settings.hasOwnProperty('dayNightShading') ? settings.dayNightShading : true,
         "CLAY_FETCH_INTERVAL_MIN": parseInt(settings.fetchIntervalMin, 10) || 30
     };
+    var palette = paletteWire.buildPaletteTuples(watchInfo, settings);
+    payload.BAR_PALETTE_UINT8 = palette.BAR_PALETTE_UINT8;
+    payload.RADAR_PALETTE_UINT8 = palette.RADAR_PALETTE_UINT8;
+    return payload;
 }
 
 module.exports = {

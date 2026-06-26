@@ -217,6 +217,62 @@ test('renderBody: a standalone (non-joined) staticText has no join class', () =>
   assert.equal(html.indexOf('join'), -1, 'no join modifier when not joined');
 });
 
+test('resolveOptionsFrom: lowest option = interval, ladder above it, deduped + labeled', () => {
+  const item = { optionsFrom: { interval: 'iv', ladder: [30, 60, 120, 360, 720, 1440] } };
+  assert.deepEqual(E.resolveOptionsFrom(item, { iv: '5' }),
+    [['5 minutes','5'],['30 minutes','30'],['1 hour','60'],['2 hours','120'],['6 hours','360'],['12 hours','720'],['1 day','1440']]);
+  assert.deepEqual(E.resolveOptionsFrom(item, { iv: '30' }),
+    [['30 minutes','30'],['1 hour','60'],['2 hours','120'],['6 hours','360'],['12 hours','720'],['1 day','1440']]);
+  assert.deepEqual(E.resolveOptionsFrom(item, { iv: '60' }),
+    [['1 hour','60'],['2 hours','120'],['6 hours','360'],['12 hours','720'],['1 day','1440']]);
+});
+
+test('resolveOptionsFrom: static options pass through; bad interval falls back to ladder[0]', () => {
+  assert.deepEqual(E.resolveOptionsFrom({ options: [['A','a']] }, {}), [['A','a']]);
+  const item = { optionsFrom: { interval: 'iv', ladder: [30, 60] } };
+  assert.deepEqual(E.resolveOptionsFrom(item, { iv: undefined }), [['30 minutes','30'],['1 hour','60']]);
+});
+
+test('renderBody materializes an optionsFrom select into the right <option>s', () => {
+  const schema = { appName: 'X', versionLabel: '', tabs: [ { id: 't', label: 'T', sections: [ { title: 'S', items: [
+    { type: 'select', messageKey: 'iv', defaultValue: '15', options: [['15 minutes','15']] },
+    { type: 'select', messageKey: 'gpsCacheMin', defaultValue: '30', optionsFrom: { interval: 'iv', ladder: [30, 60, 1440] } }
+  ] } ] } ] };
+  const cx = { S: { iv: '15', gpsCacheMin: '30' }, ENV: { color: true }, USERDATA: {},
+    openColor: null, collapsed: {}, evalCtx: { iv: '15', gpsCacheMin: '30', env: { color: true } } };
+  const html = E.renderBody(schema, 't', cx);
+  assert.ok(html.indexOf('<option value="15" selected>15 minutes</option>') >= 0);
+  assert.ok(html.indexOf('<option value="30" selected>30 minutes</option>') >= 0);
+  assert.ok(html.indexOf('<option value="60">1 hour</option>') >= 0);
+  assert.ok(html.indexOf('<option value="1440">1 day</option>') >= 0);
+});
+
+test('renderBody snaps an optionsFrom value no longer in the derived options to the first option', () => {
+  const schema = { appName: 'X', versionLabel: '', tabs: [ { id: 't', label: 'T', sections: [ { title: 'S', items: [
+    { type: 'select', messageKey: 'iv', defaultValue: '15', options: [['60 minutes','60']] },
+    { type: 'select', messageKey: 'gpsCacheMin', defaultValue: '30', optionsFrom: { interval: 'iv', ladder: [30, 60, 120, 360, 720, 1440] } }
+  ] } ] } ] };
+  // Stored gpsCacheMin '30' is below the now-raised interval (60), so it is no longer an option.
+  const cx = { S: { iv: '60', gpsCacheMin: '30' }, ENV: { color: true }, USERDATA: {},
+    openColor: null, collapsed: {}, evalCtx: { iv: '60', gpsCacheMin: '30', env: { color: true } } };
+  const html = E.renderBody(schema, 't', cx);
+  assert.equal(cx.S.gpsCacheMin, '60', 'stale value snapped to the first (lowest = interval) option');
+  assert.ok(html.indexOf('<option value="60" selected>1 hour</option>') >= 0, 'snapped option rendered selected');
+  assert.ok(html.indexOf('value="30"') < 0, 'the removed value is not rendered');
+});
+
+test('renderBody leaves an optionsFrom value untouched when it is still a valid option', () => {
+  const schema = { appName: 'X', versionLabel: '', tabs: [ { id: 't', label: 'T', sections: [ { title: 'S', items: [
+    { type: 'select', messageKey: 'iv', defaultValue: '15', options: [['60 minutes','60']] },
+    { type: 'select', messageKey: 'gpsCacheMin', defaultValue: '30', optionsFrom: { interval: 'iv', ladder: [30, 60, 120, 360, 720, 1440] } }
+  ] } ] } ] };
+  const cx = { S: { iv: '60', gpsCacheMin: '120' }, ENV: { color: true }, USERDATA: {},
+    openColor: null, collapsed: {}, evalCtx: { iv: '60', gpsCacheMin: '120', env: { color: true } } };
+  const html = E.renderBody(schema, 't', cx);
+  assert.equal(cx.S.gpsCacheMin, '120', 'valid value is not snapped');
+  assert.ok(html.indexOf('<option value="120" selected>2 hours</option>') >= 0);
+});
+
 test('renderBody: empty section card is suppressed', () => {
   const EMPTY = { appName: 'X', versionLabel: 'v0', tabs: [ { id: 't', label: 'T', sections: [
     { title: 'Gone', items: [ { type: 'toggle', messageKey: 'x', defaultValue: false, showWhen: { key: 'never', eq: 'yes' } } ] }
@@ -224,4 +280,85 @@ test('renderBody: empty section card is suppressed', () => {
   const cx = { S: {}, ENV: { color: true }, USERDATA: {}, openColor: null, collapsed: {}, evalCtx: { env: { color: true } } };
   const html = E.renderBody(EMPTY, 't', cx);
   assert.equal(html.indexOf('Gone'), -1, 'card with only hidden items is omitted');
+});
+
+test('renderSelectOptions: empty query lists all; current value flagged on', () => {
+  const item = { messageKey: 'c', options: [['United States','US'],['Germany','DE'],['Spain','ES']] };
+  const all = E.renderSelectOptions(item, 'DE', '');
+  assert.ok(all.indexOf('>United States<') >= 0 && all.indexOf('>Germany<') >= 0 && all.indexOf('>Spain<') >= 0, 'all options present');
+  assert.ok(all.indexOf('data-select-pick="DE"') >= 0 && all.indexOf('data-k="c"') >= 0, 'pick + key attrs');
+  assert.ok(/class="ssel-opt on"[^>]*data-select-pick="DE"/.test(all), 'current value row is .on');
+  assert.equal(/class="ssel-opt on"[^>]*data-select-pick="US"/.test(all), false, 'non-current row not .on');
+});
+
+test('renderSelectOptions: case-insensitive label match', () => {
+  const item = { messageKey: 'c', options: [['United States','US'],['Germany','DE'],['Spain','ES']] };
+  const r = E.renderSelectOptions(item, 'US', 'ger');
+  assert.ok(r.indexOf('>Germany<') >= 0, 'matches Germany');
+  assert.equal(r.indexOf('>Spain<'), -1, 'Spain filtered out');
+  assert.equal(r.indexOf('>United States<'), -1, 'US filtered out');
+});
+
+test('renderSelectOptions: matches the value code too', () => {
+  const item = { messageKey: 'c', options: [['United States','US'],['Germany','DE']] };
+  const r = E.renderSelectOptions(item, 'DE', 'us');
+  assert.ok(r.indexOf('>United States<') >= 0, 'typing the code "us" finds United States');
+  assert.equal(r.indexOf('>Germany<'), -1, 'Germany filtered out');
+});
+
+test('renderSelectOptions: no matches yields the muted row', () => {
+  const item = { messageKey: 'c', options: [['United States','US'],['Germany','DE']] };
+  const r = E.renderSelectOptions(item, 'US', 'zzz');
+  assert.ok(r.indexOf('ssel-none') >= 0 && r.indexOf('No matches') >= 0);
+  assert.equal(r.indexOf('ssel-opt'), -1, 'no option rows');
+});
+
+test('renderSelectOptions: label is HTML-escaped', () => {
+  const item = { messageKey: 'c', options: [['<b>x</b>','X']] };
+  const r = E.renderSelectOptions(item, 'X', '');
+  assert.equal(r.indexOf('<b>x</b>'), -1, 'raw markup must not survive');
+  assert.ok(r.indexOf('&lt;b&gt;x&lt;/b&gt;') >= 0);
+});
+
+test('renderControl searchSelect: closed shows trigger with current label, no search input', () => {
+  const item = { type: 'searchSelect', messageKey: 'c', options: [['United States','US'],['Germany','DE']] };
+  const html = E.renderControl(item, { value: 'DE', openSelect: null });
+  assert.ok(html.indexOf('class="sel-wrap" data-select="c"') >= 0, 'trigger present');
+  assert.ok(html.indexOf('>Germany<') >= 0, 'shows current option label');
+  assert.equal(html.indexOf('data-select-search'), -1, 'no search input when closed');
+});
+
+test('renderControl searchSelect: open shows search input + list of all options', () => {
+  const item = { type: 'searchSelect', messageKey: 'c', options: [['United States','US'],['Germany','DE']] };
+  const html = E.renderControl(item, { value: 'DE', openSelect: 'c', selectQuery: '' });
+  assert.ok(html.indexOf('data-select-search="c"') >= 0, 'search input present');
+  assert.ok(html.indexOf('class="ssel-list" data-ssel-list="c"') >= 0, 'list container present');
+  assert.ok(html.indexOf('>United States<') >= 0 && html.indexOf('>Germany<') >= 0, 'all options listed');
+});
+
+test('renderControl searchSelect: open list reflects the query', () => {
+  const item = { type: 'searchSelect', messageKey: 'c', options: [['United States','US'],['Germany','DE']] };
+  const html = E.renderControl(item, { value: 'US', openSelect: 'c', selectQuery: 'ger' });
+  assert.ok(html.indexOf('>Germany<') >= 0, 'matching option shown');
+  assert.equal(html.indexOf('>United States<'), -1, 'non-matching option filtered');
+  assert.ok(html.indexOf('value="ger"') >= 0, 'search box keeps the typed query');
+});
+
+test('renderRow: an open searchSelect is stacked (full-width)', () => {
+  const item = { type: 'searchSelect', messageKey: 'c', label: 'Country', options: [['A','a']] };
+  const open = E.renderRow(item, { value: 'a', openSelect: 'c', selectQuery: '' });
+  assert.ok(open.indexOf('class="row stack"') >= 0, 'open searchSelect row stacks');
+  const closed = E.renderRow(item, { value: 'a', openSelect: null });
+  assert.ok(closed.indexOf('class="row"') >= 0 && closed.indexOf('stack') === -1, 'closed searchSelect row is inline');
+});
+
+test('renderBody: searchSelect opened via cx.openSelect renders the search input', () => {
+  const SCH = { appName: 'X', versionLabel: 'v0', tabs: [ { id: 't', label: 'T', sections: [ { title: 'S', items: [
+    { type: 'searchSelect', messageKey: 'c', label: 'Country', defaultValue: 'US', options: [['United States','US'],['Germany','DE']] }
+  ] } ] } ] };
+  const cx = { S: E.hydrate(SCH, {}), ENV: { color: true }, USERDATA: {}, openColor: null, openSelect: 'c', selectQuery: '', collapsed: {},
+    evalCtx: Object.assign({}, E.hydrate(SCH, {}), { env: { color: true } }) };
+  const html = E.renderBody(SCH, 't', cx);
+  assert.ok(html.indexOf('data-select-search="c"') >= 0, 'open search input rendered through renderBody');
+  assert.ok(html.indexOf('class="row stack"') >= 0, 'row is stacked while open');
 });

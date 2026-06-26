@@ -55,6 +55,22 @@ function build(opts, now) {
 }
 
 /**
+ * Years the 28-day window touches, for prefetching holiday data.
+ *
+ * @param {{startMon: boolean, prevWeek: boolean}} opts Calendar layout.
+ * @param {Date} now Current local date/time.
+ * @returns {number[]} [year] normally, [y0, y1] when the window crosses a year boundary.
+ */
+function windowYears(opts, now) {
+    var iToday = todayCellIndex(now, opts.startMon, opts.prevWeek);
+    var cell0 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - iToday);
+    var last = new Date(cell0.getFullYear(), cell0.getMonth(), cell0.getDate() + (WINDOW_DAYS - 1));
+    var y0 = cell0.getFullYear();
+    var y1 = last.getFullYear();
+    return y0 === y1 ? [y0] : [y0, y1];
+}
+
+/**
  * Pack anchor + mask into 8 little-endian bytes for the HOLIDAYS AppMessage key.
  *
  * @param {number} anchor int32 serial-day anchor.
@@ -68,4 +84,4 @@ function pack(anchor, mask) {
     ];
 }
 
-module.exports = { build: build, pack: pack };
+module.exports = { build: build, pack: pack, windowYears: windowYears };

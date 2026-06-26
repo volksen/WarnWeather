@@ -44,7 +44,8 @@ A weather watchface for Pebble inspired by ForecasWatch2, with a 24-hour forecas
 
 **Calendar**
 * 3 week calendar
-* Customize colors for Sundays, Saturdays, and US federal holidays
+* Highlight public holidays for your country — the US plus 30+ European countries, with region/state granularity where holidays vary (Germany, Austria, Switzerland, Spain, UK, US)
+* Customize colors for Sundays, Saturdays, and holidays
 
 **Watch status**
 * Battery indicator

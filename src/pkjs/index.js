@@ -24,6 +24,7 @@ var sleepWindow = require('./sleep-window.js');
 var claySettings = require('./clay-settings.js');
 var fixtureWeather = require('./fixture-weather.js');
 var holidayMask = require('./holidays/holiday-mask.js');
+var registry = require('./holidays/registry.js');
 
 /**
  * Full release-notification manifest (dev: force-show by version). Omitted from bundle if missing.
@@ -219,6 +220,7 @@ Pebble.addEventListener('webviewclosed', function(e) {
         shouldForceFetch ? scheduleConfigCloseFetch : undefined,
         shouldForceFetch ? scheduleConfigCloseFetch : undefined
     );
+    refreshHolidays();
     console.log('Closing clay: ' + JSON.stringify(claySettings.read()));
 });
 
@@ -273,6 +275,7 @@ Pebble.addEventListener('ready',
         } else {
             drainPendingStartupSends();
         }
+        refreshHolidays();
         startTick();
     }
 );
@@ -430,6 +433,32 @@ function maybeResendHolidaysOnDayChange() {
     if (localStorage.getItem(KEY_LAST_HOLIDAY_DAY) === today) { return; }
     localStorage.setItem(KEY_LAST_HOLIDAY_DAY, today);
     sendClaySettings(function() {}, function() {});
+    refreshHolidays();
+}
+
+/**
+ * Ensure the selected country's holiday data is cached for the visible window's
+ * year(s); when a fetch lands new data, resend Clay so the mask updates. The
+ * mask itself is always built synchronously from cache in sendClaySettings, so
+ * this never blocks a send — the deduping outbox transmits only on a real change.
+ *
+ * @returns {void}
+ */
+function refreshHolidays() {
+    if (!app.settings) { return; }
+    var country = app.settings.hasOwnProperty('holidayCountry') ? app.settings.holidayCountry : 'US';
+    if (country === 'none') { return; }
+    var color = app.settings.hasOwnProperty('colorUSFederal') ? app.settings.colorUSFederal : DEFAULT_COLOR_FOLLY;
+    if (color === DEFAULT_COLOR_WHITE) { return; }
+    var provider = registry.getProvider(country);
+    if (!provider) { return; }
+    var years = holidayMask.windowYears({
+        startMon: app.settings.weekStartDay === 'mon',
+        prevWeek: app.settings.firstWeek === 'prev'
+    }, new Date());
+    provider.ensure(years, function () {
+        sendClaySettings(function () {}, function () {});
+    });
 }
 
 /**
@@ -485,6 +514,7 @@ function refreshProvider() {
     var oldProviderId = app.provider ? app.provider.id : null;
     setProvider(app.settings.provider);
     app.provider.location = app.settings.location === '' ? null : app.settings.location;
+    app.provider.gpsMaxAgeMs = WeatherProvider.computeGpsMaxAgeMs(app.settings.gpsCacheMin, app.settings.fetchIntervalMin);
 
     var locationChanged = oldLocation !== app.provider.location;
     var providerChanged = oldProviderId !== app.provider.id;
@@ -566,9 +596,9 @@ function isWatchConnected() {
  * Out-of-coverage (DWD returns radar: []) is NOT a failure — it
  * produces zero arrays via withRadar2hRain, which is shipped normally.
  *
- * Relies on the existing GPS cache (maximumAge: 10000 ms in
- * WeatherProvider.withGpsCoordinates) to absorb the second
- * getCurrentPosition call that provider.fetch makes shortly after.
+ * Relies on the existing GPS cache (the configurable maximumAge in
+ * WeatherProvider.withGpsCoordinates, always >= the update interval) to absorb
+ * the second getCurrentPosition call that provider.fetch makes shortly after.
  *
  * @param {Object} provider Active WeatherProvider (has .withCoordinates).
  * @param {Function} callback Receives `{tuples}` or `null`.

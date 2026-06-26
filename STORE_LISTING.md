@@ -51,7 +51,10 @@ RAIN RADAR (for now only available for Deutscher Wetterdienst)
 
 CALENDAR
 - 3-week calendar
-- Customize colors for Sundays, Saturdays, and US federal holidays
+- Highlight public holidays for your country — the US plus 30+ European countries, with
+  region/state granularity where holidays vary (Germany, Austria, Switzerland, Spain, UK,
+  United States)
+- Customize colors for Sundays, Saturdays, and holidays
 
 WATCH STATUS
 - Battery indicator

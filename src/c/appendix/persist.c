@@ -248,12 +248,17 @@ void persist_migrate_trend_encoding(void) {
     int v = persist_exists(TREND_ENCODING_VERSION) ? persist_read_int(TREND_ENCODING_VERSION) : 1;
     if (v == TREND_ENCODING_VERSION_CURRENT) { return; }
     // Pre-uint8 watches hold int16 trends that would misread as uint8. Drop
-    // them and zero NUM_ENTRIES so loading_layer_data_is_fresh() reports false
-    // → startup tells the phone to resend the full uint8 payload.
+    // them and delete FORECAST_START so loading_layer_data_is_fresh() — which
+    // gates on FORECAST_START age (12 h) — reports false → watch signals
+    // WATCH_HAS_FORECAST_DATA=false → phone calls clearWeatherCaches() and
+    // resends the full uint8 payload. persist_read_int() returns 0 for an
+    // absent key, making now-0 always exceed the 12 h threshold. Zeroing
+    // NUM_ENTRIES is kept as defence-in-depth so interim renders stay clean.
     persist_delete(TEMP_TREND); persist_delete(LINE_TREND);
     persist_delete(BAR_TREND);  persist_delete(THIRD_LINE_TREND);
     persist_delete(LINE_COUNT); persist_delete(BAR_COUNT);
     persist_delete(TEMP_MIN);   persist_delete(TEMP_MAX);
+    persist_delete(FORECAST_START);
     persist_set_num_entries(0);
     persist_write_int(TREND_ENCODING_VERSION, TREND_ENCODING_VERSION_CURRENT);
 }

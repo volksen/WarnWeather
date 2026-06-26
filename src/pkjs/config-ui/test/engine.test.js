@@ -247,6 +247,32 @@ test('renderBody materializes an optionsFrom select into the right <option>s', (
   assert.ok(html.indexOf('<option value="1440">1 day</option>') >= 0);
 });
 
+test('renderBody snaps an optionsFrom value no longer in the derived options to the first option', () => {
+  const schema = { appName: 'X', versionLabel: '', tabs: [ { id: 't', label: 'T', sections: [ { title: 'S', items: [
+    { type: 'select', messageKey: 'iv', defaultValue: '15', options: [['60 minutes','60']] },
+    { type: 'select', messageKey: 'gpsCacheMin', defaultValue: '30', optionsFrom: { interval: 'iv', ladder: [30, 60, 120, 360, 720, 1440] } }
+  ] } ] } ] };
+  // Stored gpsCacheMin '30' is below the now-raised interval (60), so it is no longer an option.
+  const cx = { S: { iv: '60', gpsCacheMin: '30' }, ENV: { color: true }, USERDATA: {},
+    openColor: null, collapsed: {}, evalCtx: { iv: '60', gpsCacheMin: '30', env: { color: true } } };
+  const html = E.renderBody(schema, 't', cx);
+  assert.equal(cx.S.gpsCacheMin, '60', 'stale value snapped to the first (lowest = interval) option');
+  assert.ok(html.indexOf('<option value="60" selected>1 hour</option>') >= 0, 'snapped option rendered selected');
+  assert.ok(html.indexOf('value="30"') < 0, 'the removed value is not rendered');
+});
+
+test('renderBody leaves an optionsFrom value untouched when it is still a valid option', () => {
+  const schema = { appName: 'X', versionLabel: '', tabs: [ { id: 't', label: 'T', sections: [ { title: 'S', items: [
+    { type: 'select', messageKey: 'iv', defaultValue: '15', options: [['60 minutes','60']] },
+    { type: 'select', messageKey: 'gpsCacheMin', defaultValue: '30', optionsFrom: { interval: 'iv', ladder: [30, 60, 120, 360, 720, 1440] } }
+  ] } ] } ] };
+  const cx = { S: { iv: '60', gpsCacheMin: '120' }, ENV: { color: true }, USERDATA: {},
+    openColor: null, collapsed: {}, evalCtx: { iv: '60', gpsCacheMin: '120', env: { color: true } } };
+  const html = E.renderBody(schema, 't', cx);
+  assert.equal(cx.S.gpsCacheMin, '120', 'valid value is not snapped');
+  assert.ok(html.indexOf('<option value="120" selected>2 hours</option>') >= 0);
+});
+
 test('renderBody: empty section card is suppressed', () => {
   const EMPTY = { appName: 'X', versionLabel: 'v0', tabs: [ { id: 't', label: 'T', sections: [
     { title: 'Gone', items: [ { type: 'toggle', messageKey: 'x', defaultValue: false, showWhen: { key: 'never', eq: 'yes' } } ] }

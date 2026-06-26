@@ -97,6 +97,12 @@ var PConf = (typeof PConf !== 'undefined') ? PConf
     return values.map(function (min) { return [formatMinutesLabel(min), String(min)]; });
   }
 
+  // True if any [label, value] option carries value v.
+  function optionHasValue(options, v) {
+    for (var i = 0; i < options.length; i += 1) { if (options[i][1] === v) { return true; } }
+    return false;
+  }
+
   function renderSelect(item, v) {
     var h = '<select data-k="' + item.messageKey + '">', i, o;
     for (i = 0; i < item.options.length; i++) {
@@ -169,9 +175,18 @@ var PConf = (typeof PConf !== 'undefined') ? PConf
       var staticCls = 'static' + (item.joinPrevious ? ' join' : '') + (noDivider ? ' nb' : '');
       return { html: '<div class="' + staticCls + '">' + (item.text || '') + '</div>', kind: 'static' };
     }
-    var rowItem = (item.type === 'select' && item.optionsFrom)
-      ? Object.assign({}, item, { options: resolveOptionsFrom(item, cx.S) })
-      : item;
+    var rowItem = item;
+    if (item.type === 'select' && item.optionsFrom) {
+      var derived = resolveOptionsFrom(item, cx.S);
+      // Display-snap: if the stored value is no longer among the derived options (e.g. the
+      // interval they depend on was raised), snap it to the first (lowest = interval) option so
+      // the rendered <select> and the stored state stay in lockstep instead of silently diverging.
+      if (derived.length && !optionHasValue(derived, view.value)) {
+        view.value = derived[0][1];
+        cx.S[item.messageKey] = derived[0][1];
+      }
+      rowItem = Object.assign({}, item, { options: derived });
+    }
     var html = renderBlock(item.blockBefore, cx.S, cx.ENV, cx.USERDATA, item.blockBeforeSticky)
       + renderRow(rowItem, view, noDivider)
       + renderBlock(item.block, cx.S, cx.ENV, cx.USERDATA);

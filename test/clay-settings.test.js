@@ -193,3 +193,19 @@ test('migrateHolidayRegionKeys: region-less country -> holidayRegion stays all, 
   assert.equal(read.holidayRegion, 'all', 'no adoption for a region-less country');
   assert.equal('holidayRegionDE' in read, false, 'stale per-country key still dropped');
 });
+
+test('migrateHolidayRegionKeys: already-real subdivision preserved, old keys still dropped', () => {
+  const store = installFakeStorage();
+  delete require.cache[require.resolve('../src/pkjs/clay-settings')];
+  const claySettings = require('../src/pkjs/clay-settings');
+  store['clay-settings'] = JSON.stringify({
+    holidayCountry: 'DE', holidayRegion: 'DE-NW', holidayRegionDE: 'DE-BY', holidayRegionUS: 'US-CA'
+  });
+  let marked = false;
+  claySettings.migrateHolidayRegionKeys(() => false, () => { marked = true; });
+  const read = claySettings.read();
+  assert.equal(read.holidayRegion, 'DE-NW', 'real subdivision must not be overwritten by the old per-country key');
+  assert.equal('holidayRegionDE' in read, false, 'old DE key dropped');
+  assert.equal('holidayRegionUS' in read, false, 'old US key dropped');
+  assert.equal(marked, true, 'migration marked done');
+});

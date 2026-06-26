@@ -21,7 +21,9 @@ test('holiday pickers use the searchSelect control', () => {
   const regionItem = findItem(schema, 'holidayRegion');
   assert.ok(regionItem, 'missing schema item holidayRegion');
   assert.equal(regionItem.type, 'searchSelect', 'holidayRegion should be searchSelect');
-  assert.ok(regionItem.optionsFrom && typeof regionItem.optionsFrom === 'object', 'holidayRegion uses optionsFrom');
+  assert.equal(regionItem.optionsFrom.byKey, 'holidayCountry', 'optionsFrom.byKey must reference the country picker');
+  assert.ok(regionItem.optionsFrom.map !== null && typeof regionItem.optionsFrom.map === 'object', 'optionsFrom.map must be the region options map');
+  assert.equal(regionItem.options, undefined, 'holidayRegion options must be derived (no static options list)');
 });
 
 test('non-holiday selects stay plain select (spot check)', () => {

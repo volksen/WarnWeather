@@ -13,7 +13,7 @@ test('country options: None first, Germany second, Sweden present, no duplicate 
   assert.equal(COUNTRY_OPTIONS.length, 152, 'expected None + 151 Nager countries');
 });
 
-test('region maps: only the six region-varying countries', () => {
+test('region maps: the fifteen region-varying countries', () => {
   assert.deepEqual(Object.keys(REGION_OPTIONS).sort(),
     ['AT', 'AU', 'BA', 'BQ', 'BR', 'CA', 'CH', 'CL', 'DE', 'ES', 'GB', 'IT', 'NZ', 'PT', 'US']);
 });

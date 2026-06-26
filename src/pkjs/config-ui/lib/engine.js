@@ -81,6 +81,7 @@ var PConf = (typeof PConf !== 'undefined') ? PConf
   }
 
   // Resolve a select's options from current settings S. A static item.options passes through.
+  // Or item.optionsFrom = { byKey, map } yields map[S[byKey]] || [] (a synchronous lookup keyed off another setting's value).
   // Otherwise item.optionsFrom = { interval, ladder } yields [interval] + ladder values strictly
   // greater than the interval (so equal values dedupe), each as [label, String(minutes)].
   function resolveOptionsFrom(item, S) {

@@ -12,7 +12,7 @@ var DEFAULT_COLOR_FOLLY = pebbleColors.GColorFolly;
 /**
  * Build the Clay settings AppMessage payload.
  * @param {Object} settings Clay settings (claySettings.read() shape).
- * @param {Object|null} watchInfo Active watch info (reserved for palette packing in Task 3).
+ * @param {Object|null} watchInfo Active watch info (platform read for palette packing).
  * @param {Date} [now] Reference time for the holiday window; defaults to new Date().
  * @returns {Object} AppMessage key→value payload.
  */

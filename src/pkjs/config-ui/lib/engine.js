@@ -87,6 +87,7 @@ var PConf = (typeof PConf !== 'undefined') ? PConf
     if (item.options) { return item.options; }
     var spec = item.optionsFrom;
     if (!spec) { return []; }
+    if (spec.byKey && spec.map) { return spec.map[S[spec.byKey]] || []; }
     var ladder = spec.ladder || [];
     var interval = parseInt(S[spec.interval], 10);
     if (isNaN(interval) || interval <= 0) { interval = ladder.length ? ladder[0] : 0; }
@@ -217,7 +218,7 @@ var PConf = (typeof PConf !== 'undefined') ? PConf
       return { html: '<div class="' + staticCls + '">' + (item.text || '') + '</div>', kind: 'static' };
     }
     var rowItem = item;
-    if (item.type === 'select' && item.optionsFrom) {
+    if ((item.type === 'select' || item.type === 'searchSelect') && item.optionsFrom) {
       var derived = resolveOptionsFrom(item, cx.S);
       // Display-snap: if the stored value is no longer among the derived options (e.g. the
       // interval they depend on was raised), snap it to the first (lowest = interval) option so

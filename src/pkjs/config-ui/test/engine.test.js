@@ -244,6 +244,14 @@ test('resolveOptionsFrom: static options pass through; bad interval falls back t
   assert.deepEqual(E.resolveOptionsFrom(item, { iv: undefined }), [['30 minutes','30'],['1 hour','60']]);
 });
 
+test('resolveOptionsFrom: byKey/map returns the selected key\'s list, [] when unmapped', () => {
+  const map = { DE: [['Whole country', 'all'], ['Bavaria', 'DE-BY']], US: [['Whole country', 'all']] };
+  const item = { optionsFrom: { byKey: 'country', map: map } };
+  assert.deepEqual(E.resolveOptionsFrom(item, { country: 'DE' }), [['Whole country', 'all'], ['Bavaria', 'DE-BY']]);
+  assert.deepEqual(E.resolveOptionsFrom(item, { country: 'US' }), [['Whole country', 'all']]);
+  assert.deepEqual(E.resolveOptionsFrom(item, { country: 'FR' }), [], 'unmapped country -> empty');
+});
+
 test('renderBody materializes an optionsFrom select into the right <option>s', () => {
   const schema = { appName: 'X', versionLabel: '', tabs: [ { id: 't', label: 'T', sections: [ { title: 'S', items: [
     { type: 'select', messageKey: 'iv', defaultValue: '15', options: [['15 minutes','15']] },
@@ -282,6 +290,21 @@ test('renderBody leaves an optionsFrom value untouched when it is still a valid 
   const html = E.renderBody(schema, 't', cx);
   assert.equal(cx.S.gpsCacheMin, '120', 'valid value is not snapped');
   assert.ok(html.indexOf('<option value="120" selected>2 hours</option>') >= 0);
+});
+
+test('renderBody applies optionsFrom to a searchSelect and snaps an invalid value to the first option', () => {
+  const map = { DE: [['Whole country', 'all'], ['Bavaria', 'DE-BY']] };
+  const schema = { appName: 'X', versionLabel: '', tabs: [{ id: 't', label: 'T', sections: [{ title: 'S', items: [
+    { type: 'searchSelect', messageKey: 'country', defaultValue: 'DE', options: [['Germany', 'DE'], ['France', 'FR']] },
+    { type: 'searchSelect', messageKey: 'region', defaultValue: 'all', optionsFrom: { byKey: 'country', map: map } }
+  ] }] }] };
+  // region 'US-CA' is not valid for country 'DE' -> snaps to first option ('all').
+  const cx = { S: { country: 'DE', region: 'US-CA' }, ENV: { color: true }, USERDATA: {},
+    openColor: null, openSelect: null, selectQuery: '', collapsed: {},
+    evalCtx: { country: 'DE', region: 'US-CA', env: { color: true } } };
+  const html = E.renderBody(schema, 't', cx);
+  assert.equal(cx.S.region, 'all', 'invalid region snapped to Whole country (proves optionsFrom fires for searchSelect)');
+  assert.ok(html.indexOf('Whole country') >= 0, 'snapped label shown in the searchSelect trigger');
 });
 
 test('renderBody: empty section card is suppressed', () => {

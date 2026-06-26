@@ -50,17 +50,6 @@ var FILL_COLORS = { precip_prob: COLORS.GColorCobaltBlue };
 var WIND_SCALE_KMH = { low: 30, mid: 50, high: 70 };
 
 /**
- * Serialize an int16 value array to a little-endian byte array. sendAppMessage
- * packs plain arrays as uint8 (0..255), so permille trends (which exceed 255)
- * must be sent as bytes — same convention as TEMP_TREND_INT16 in getPayload.
- * @param {number[]} arr Int16 values.
- * @returns {number[]} Little-endian bytes (empty in → empty out).
- */
-function toInt16Bytes(arr) {
-    return Array.prototype.slice.call(new Uint8Array(new Int16Array(arr).buffer));
-}
-
-/**
  * Scale a km/h series to permille (0..1000) against a km/h ceiling, clamped to
  * the graph top. Shared by the wind line and the gust third line so both use one
  * vertical scale.
@@ -80,48 +69,48 @@ function scaleToPermille(arr, max) {
 /**
  * Map raw provider series + settings to the render-ready forecast wire fields.
  * The watch draws whatever series + colors it is handed; PKJS owns which metric
- * feeds the line vs the bars. Trends are returned as int16 LE byte arrays ready
- * for sendAppMessage; an off/disabled element is an empty array.
+ * feeds the line vs the bars. Trends are returned as uint8 byte arrays (0..250)
+ * ready for sendAppMessage; an off/disabled element is an empty array.
  * @param {{precips: number[], rains: number[], winds: number[], gusts: number[]}} raw Raw precip %, rain tenths, wind km/h, gust km/h.
  * @param {{secondaryLine: string, secondaryLineFill: boolean, barSource: string, windScale: string, gustLine: boolean}} settings Settings.
- * @returns {Object} Wire fields: SECONDARY_LINE_TREND_INT16, SECONDARY_LINE_COLOR,
- *   SECONDARY_LINE_FILL_COLOR, SECONDARY_LINE_FILL, THIRD_LINE_TREND_INT16, BAR_TREND_INT16.
+ * @returns {Object} Wire fields: SECONDARY_LINE_TREND_UINT8, SECONDARY_LINE_COLOR,
+ *   SECONDARY_LINE_FILL_COLOR, SECONDARY_LINE_FILL, THIRD_LINE_TREND_UINT8, BAR_TREND_UINT8.
  */
 function buildForecastSeries(raw, settings) {
     var out = {};
     if (settings.secondaryLine === 'precip_prob') {
-        out.SECONDARY_LINE_TREND_INT16 = toInt16Bytes(raw.precips.map(function(p) { return p * 10; })); // %→permille
+        out.SECONDARY_LINE_TREND_UINT8 = raw.precips.map(function(p) { return permilleToByte(p * 10); }); // %→permille→byte
         out.SECONDARY_LINE_COLOR = LINE_COLORS.precip_prob;
         out.SECONDARY_LINE_FILL_COLOR = FILL_COLORS.precip_prob;
         out.SECONDARY_LINE_FILL = Boolean(settings.secondaryLineFill);
-        out.THIRD_LINE_TREND_INT16 = [];   // gust line off unless secondaryLine === 'wind'
+        out.THIRD_LINE_TREND_UINT8 = [];   // gust line off unless secondaryLine === 'wind'
     } else if (settings.secondaryLine === 'wind') {
         var max = WIND_SCALE_KMH[settings.windScale] || WIND_SCALE_KMH.mid; // km/h ceiling
-        out.SECONDARY_LINE_TREND_INT16 = toInt16Bytes(scaleToPermille(raw.winds, max));
+        out.SECONDARY_LINE_TREND_UINT8 = scaleToPermille(raw.winds, max).map(permilleToByte);
         out.SECONDARY_LINE_COLOR = LINE_COLORS.wind;
         out.SECONDARY_LINE_FILL_COLOR = LINE_COLORS.wind;  // unused (fill off); set to the line color
         out.SECONDARY_LINE_FILL = false;                   // wind is always line-only
         // Gust line is opt-out: when gustLine is off, send an empty third line.
-        out.THIRD_LINE_TREND_INT16 = [];
+        out.THIRD_LINE_TREND_UINT8 = [];
         if (settings.gustLine !== false) {
             var gustPermille = scaleToPermille(raw.gusts, max);
             var hasGust = false;
             for (var gi = 0; gi < gustPermille.length; gi += 1) {
                 if (gustPermille[gi] > 0) { hasGust = true; break; }
             }
-            out.THIRD_LINE_TREND_INT16 = hasGust ? toInt16Bytes(gustPermille) : [];
+            out.THIRD_LINE_TREND_UINT8 = hasGust ? gustPermille.map(permilleToByte) : [];
         }
     } else {
-        out.SECONDARY_LINE_TREND_INT16 = [];
+        out.SECONDARY_LINE_TREND_UINT8 = [];
         out.SECONDARY_LINE_COLOR = COLORS.GColorBlack;
         out.SECONDARY_LINE_FILL_COLOR = COLORS.GColorBlack;
         out.SECONDARY_LINE_FILL = false;
-        out.THIRD_LINE_TREND_INT16 = [];   // gust line off unless secondaryLine === 'wind'
+        out.THIRD_LINE_TREND_UINT8 = [];   // gust line off unless secondaryLine === 'wind'
     }
     if (settings.barSource === 'rain') {
-        out.BAR_TREND_INT16 = toInt16Bytes(raw.rains.map(rainTier.rainPermille));
+        out.BAR_TREND_UINT8 = raw.rains.map(rainTier.rainPermille).map(permilleToByte);
     } else {
-        out.BAR_TREND_INT16 = [];
+        out.BAR_TREND_UINT8 = [];
     }
     return out;
 }
@@ -136,8 +125,8 @@ function buildForecastSeries(raw, settings) {
  * @param {Object} payload Weather payload carrying PRECIP_TREND_UINT8 + RAIN_TREND_UINT8 + WIND_TREND_UINT8 + GUST_TREND_UINT8.
  * @param {{secondaryLine: string, secondaryLineFill: boolean, barSource: string, windScale: string, gustLine: boolean}} settings Clay settings.
  * @returns {Object} The same payload, with the raw keys removed and the six series keys set
- *   (SECONDARY_LINE_TREND_INT16, SECONDARY_LINE_COLOR, SECONDARY_LINE_FILL,
- *   SECONDARY_LINE_FILL_COLOR, THIRD_LINE_TREND_INT16, BAR_TREND_INT16).
+ *   (SECONDARY_LINE_TREND_UINT8, SECONDARY_LINE_COLOR, SECONDARY_LINE_FILL,
+ *   SECONDARY_LINE_FILL_COLOR, THIRD_LINE_TREND_UINT8, BAR_TREND_UINT8).
  */
 function applyForecastSeries(payload, settings) {
     var series = buildForecastSeries(
@@ -149,12 +138,12 @@ function applyForecastSeries(payload, settings) {
     delete payload.RAIN_TREND_UINT8;
     delete payload.WIND_TREND_UINT8;  // transient PKJS-only key; never goes over the wire
     delete payload.GUST_TREND_UINT8;  // transient PKJS-only key; never goes over the wire
-    payload.SECONDARY_LINE_TREND_INT16 = series.SECONDARY_LINE_TREND_INT16;
+    payload.SECONDARY_LINE_TREND_UINT8 = series.SECONDARY_LINE_TREND_UINT8;
     payload.SECONDARY_LINE_COLOR = series.SECONDARY_LINE_COLOR;
     payload.SECONDARY_LINE_FILL = series.SECONDARY_LINE_FILL;
     payload.SECONDARY_LINE_FILL_COLOR = series.SECONDARY_LINE_FILL_COLOR;
-    payload.THIRD_LINE_TREND_INT16 = series.THIRD_LINE_TREND_INT16;
-    payload.BAR_TREND_INT16 = series.BAR_TREND_INT16;
+    payload.THIRD_LINE_TREND_UINT8 = series.THIRD_LINE_TREND_UINT8;
+    payload.BAR_TREND_UINT8 = series.BAR_TREND_UINT8;
     return payload;
 }
 

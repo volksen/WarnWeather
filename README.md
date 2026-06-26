@@ -30,7 +30,7 @@ A weather watchface for Pebble inspired by ForecasWatch2, with a 24-hour forecas
 * 24 hour weather forecast with configurable update frequency
 * Current temperature
 * Temperature forecast line
-* Optional secondary line — precipitation probability (half-height = 50%, full-height = 100%, with an optional fill underneath) or wind speed with a dotted gust line above it (selectable graph scale)
+* Optional secondary line and optional third line — each independently shows precipitation probability, wind speed, wind gust, or UV index (same metric can’t appear on both lines); the precipitation line has a configurable fill and the wind line shows a dotted gust line above it (selectable graph scale)
 * Optional hourly rain bars — multicolor or white on color watches
 * Optional day/night hatch shading on the graph
 * Fahrenheit and Celsius temperatures
@@ -62,8 +62,9 @@ A weather watchface for Pebble inspired by ForecasWatch2, with a 24-hour forecas
 Two things that both involve rain over time, but answer different questions:
 
 - **Forecast graph** — the hourly prediction, looking up to 24 hours ahead. Temperature is
-  always shown; on top of it you choose what to add — the chance of rain or wind speed with
-  gusts as a second line, plus optional bars for the hourly rain amount.
+  always shown; on top of it you choose what to add — precipitation probability, wind speed,
+  wind gust, or UV index as a second and optional third line (the same metric can't appear on
+  both), plus optional bars for the hourly rain amount.
 - **Rain radar** — unlike the forecast graph's model prediction, this is a short-term nowcast
   based on actual radar measurements moving toward you, refreshed often as new scans arrive.
   Instead of a map it's drawn as bars: the provider's radar images for the next 2 hours are

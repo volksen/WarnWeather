@@ -30,5 +30,9 @@
   "1.4.1": {
     "title": "Thanks for updating!",
     "body": "WarnWeather 1.4.1 expands public-holiday highlighting to 150+ countries worldwide with refined regional pickers. Adjust your forecast, rain radar, holidays, and calendar in settings."
+  },
+  "1.5.0": {
+    "title": "UV index + third graph line",
+    "body": "Pick what the forecast graph's secondary and new third line show — precip, wind, gust or UV index."
   }
 }

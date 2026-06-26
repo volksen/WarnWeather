@@ -289,7 +289,11 @@ var PConf = (typeof PConf !== 'undefined') ? PConf
     var SCHEMA = INJECTED_SCHEMA, ENV = INJECTED_ENV || { color: true, round: false, platform: '' };
     var USERDATA = INJECTED_USERDATA || {}, RETURN_TO = INJECTED_RETURN || 'pebblejs://close#';
     var S = hydrate(SCHEMA, INJECTED_CFG), INITIAL = Object.assign({}, S);
-    var activeTab = SCHEMA.tabs[0].id, openColor = null, collapsed = initialCollapsed(SCHEMA);
+    var activeTab = SCHEMA.tabs[0].id, openColor = null, openSelect = null, selectQuery = '', collapsed = initialCollapsed(SCHEMA);
+    // Recover a schema item by messageKey so the input handler can re-filter its options in place.
+    function findItem(key) { var f = null; eachItem(SCHEMA, function (it) { if (it.messageKey === key) { f = it; } }); return f; }
+    // Only one searchSelect is open at a time; focus its freshly-rendered search box.
+    function focusSearch() { var el = document.querySelector('[data-select-search]'); if (el) { el.focus(); } }
     // evalCtx(): the {settings..., env} object showWhen predicates evaluate against.
     function evalCtx() { var c = Object.assign({}, S); c.env = ENV; return c; }
     var hookCtx = { get: function (k) { return S[k]; }, set: function (k, v) { S[k] = v; }, getInitial: function (k) { return INITIAL[k]; } };
@@ -297,7 +301,7 @@ var PConf = (typeof PConf !== 'undefined') ? PConf
     // boot() requires the DOM; it is never called from Node tests (which exercise the pure
     // helpers above), so DOM access here is unguarded by design.
     function render() {
-      var cx = { S: S, ENV: ENV, USERDATA: USERDATA, openColor: openColor, collapsed: collapsed, evalCtx: evalCtx() };
+      var cx = { S: S, ENV: ENV, USERDATA: USERDATA, openColor: openColor, openSelect: openSelect, selectQuery: selectQuery, collapsed: collapsed, evalCtx: evalCtx() };
       document.getElementById('tabs').innerHTML = renderTabBar(SCHEMA, activeTab);
       document.getElementById('scroll').innerHTML = renderBody(SCHEMA, activeTab, cx);
     }
@@ -307,10 +311,12 @@ var PConf = (typeof PConf !== 'undefined') ? PConf
 
     document.getElementById('tabs').addEventListener('click', function (e) {
       var b = e.target.closest('[data-tab]');
-      if (b) { activeTab = b.getAttribute('data-tab'); openColor = null; render(); }
+      if (b) { activeTab = b.getAttribute('data-tab'); openColor = null; openSelect = null; render(); }
     });
     document.getElementById('scroll').addEventListener('click', function (e) {
       var t;
+      if ((t = e.target.closest('[data-select-pick]'))) { S[t.getAttribute('data-k')] = t.getAttribute('data-select-pick'); openSelect = null; render(); return; }
+      if ((t = e.target.closest('[data-select]'))) { var sk = t.getAttribute('data-select'); openSelect = (openSelect === sk ? null : sk); selectQuery = ''; render(); focusSearch(); return; }
       if ((t = e.target.closest('[data-toggle]'))) { S[t.getAttribute('data-k')] = !S[t.getAttribute('data-k')]; render(); return; }
       if ((t = e.target.closest('[data-color-pick]'))) { S[t.getAttribute('data-k')] = t.getAttribute('data-color-pick'); openColor = null; render(); return; }
       if ((t = e.target.closest('[data-color]'))) { var k = t.getAttribute('data-color'); openColor = (openColor === k ? null : k); render(); return; }
@@ -322,6 +328,15 @@ var PConf = (typeof PConf !== 'undefined') ? PConf
       if (sel) { S[sel.getAttribute('data-k')] = sel.value; render(); }
     });
     document.getElementById('scroll').addEventListener('input', function (e) {
+      var sb = e.target.closest('[data-select-search]');
+      if (sb) {
+        var sk = sb.getAttribute('data-select-search');
+        selectQuery = sb.value;
+        // Rebuild ONLY the list (a sibling of the search box) so the input keeps focus + cursor.
+        var list = document.querySelector('[data-ssel-list="' + sk + '"]');
+        if (list) { list.innerHTML = renderSelectOptions(findItem(sk), S[sk], selectQuery); }
+        return;
+      }
       var inp = e.target.closest('input[type=text]');
       if (inp) { S[inp.getAttribute('data-k')] = inp.value; }
     });

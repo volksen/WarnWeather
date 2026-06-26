@@ -16,16 +16,18 @@
 // persist setters report real changes, so only the affected layers redraw.
 
 static bool handle_forecast(DictionaryIterator *iterator, bool *forecast_dirty) {
-    Tuple *temp_trend_tuple = dict_find(iterator, MESSAGE_KEY_TEMP_TREND_INT16);
+    Tuple *temp_trend_tuple = dict_find(iterator, MESSAGE_KEY_TEMP_TREND_UINT8);
     Tuple *forecast_start_tuple = dict_find(iterator, MESSAGE_KEY_FORECAST_START);
     Tuple *num_entries_tuple = dict_find(iterator, MESSAGE_KEY_NUM_ENTRIES);
     // Render-ready, already-selected series + line styling (PKJS owns the choice).
-    Tuple *line_trend_tuple = dict_find(iterator, MESSAGE_KEY_SECONDARY_LINE_TREND_INT16);
-    Tuple *bar_trend_tuple  = dict_find(iterator, MESSAGE_KEY_BAR_TREND_INT16);
+    Tuple *line_trend_tuple = dict_find(iterator, MESSAGE_KEY_SECONDARY_LINE_TREND_UINT8);
+    Tuple *bar_trend_tuple  = dict_find(iterator, MESSAGE_KEY_BAR_TREND_UINT8);
     Tuple *line_color_tuple = dict_find(iterator, MESSAGE_KEY_SECONDARY_LINE_COLOR);
     Tuple *fill_color_tuple = dict_find(iterator, MESSAGE_KEY_SECONDARY_LINE_FILL_COLOR);
     Tuple *line_fill_tuple  = dict_find(iterator, MESSAGE_KEY_SECONDARY_LINE_FILL);
-    Tuple *third_trend_tuple = dict_find(iterator, MESSAGE_KEY_THIRD_LINE_TREND_INT16);
+    Tuple *third_trend_tuple = dict_find(iterator, MESSAGE_KEY_THIRD_LINE_TREND_UINT8);
+    Tuple *temp_min_tuple = dict_find(iterator, MESSAGE_KEY_TEMP_MIN);
+    Tuple *temp_max_tuple = dict_find(iterator, MESSAGE_KEY_TEMP_MAX);
 
     if (!(temp_trend_tuple && forecast_start_tuple && num_entries_tuple)) {
         if (temp_trend_tuple || forecast_start_tuple || num_entries_tuple) {
@@ -48,14 +50,17 @@ static bool handle_forecast(DictionaryIterator *iterator, bool *forecast_dirty) 
     bool changed = false;
     changed |= persist_set_forecast_start((time_t) forecast_start_tuple->value->int32);
     changed |= persist_set_num_entries(num_entries);
-    changed |= persist_set_temp_trend((int16_t*) temp_trend_tuple->value->data, num_entries);
+    changed |= persist_set_temp_trend((uint8_t*) temp_trend_tuple->value->data, num_entries);
+    if (temp_min_tuple) { changed |= persist_set_temp_min((int) temp_min_tuple->value->int32); }
+    if (temp_max_tuple) { changed |= persist_set_temp_max((int) temp_max_tuple->value->int32); }
 
     // Line/bar series are optional: an empty/missing trend means that element is
-    // off, persisted as count 0.
-    int line_count = line_trend_tuple ? (int)(line_trend_tuple->length / sizeof(int16_t)) : 0;
-    int bar_count  = bar_trend_tuple  ? (int)(bar_trend_tuple->length  / sizeof(int16_t)) : 0;
-    changed |= persist_set_line_trend(line_count ? (int16_t*) line_trend_tuple->value->data : NULL, line_count);
-    changed |= persist_set_bar_trend(bar_count ? (int16_t*) bar_trend_tuple->value->data : NULL, bar_count);
+    // off, persisted as count 0. Element count = byte length (1 byte/elem).
+    int line_count  = line_trend_tuple  ? (int) line_trend_tuple->length  : 0;
+    int bar_count   = bar_trend_tuple   ? (int) bar_trend_tuple->length   : 0;
+    int third_count = third_trend_tuple ? (int) third_trend_tuple->length : 0;
+    changed |= persist_set_line_trend(line_count ? (uint8_t*) line_trend_tuple->value->data : NULL, line_count);
+    changed |= persist_set_bar_trend(bar_count ? (uint8_t*) bar_trend_tuple->value->data : NULL, bar_count);
     if (line_color_tuple) {
         changed |= persist_set_line_color(GColorFromHEX(line_color_tuple->value->int32));
     }
@@ -68,9 +73,8 @@ static bool handle_forecast(DictionaryIterator *iterator, bool *forecast_dirty) 
     // Gust third line: empty/missing trend ⇒ off (persist_set deletes the key).
     // Mirrors the existing line/bar handling above: a zero-length tuple maps to
     // NULL/0 → persist_set_third_line_trend deletes the key. No color tuple.
-    int third_count = third_trend_tuple ? (int)(third_trend_tuple->length / sizeof(int16_t)) : 0;
     changed |= persist_set_third_line_trend(
-        third_count ? (int16_t*) third_trend_tuple->value->data : NULL, third_count);
+        third_count ? (uint8_t*) third_trend_tuple->value->data : NULL, third_count);
 
     *forecast_dirty |= changed;
     return true;

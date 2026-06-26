@@ -3,6 +3,8 @@
 #include "persist.h"
 #include "config.h"
 
+#define TREND_ENCODING_VERSION_CURRENT 2
+
 enum key {
     TEMP_TREND, PRECIP_TREND, FORECAST_START, CITY, SUN_EVENT_START_TYPE, SUN_EVENT_TIMES, NUM_ENTRIES,
     CURRENT_TEMP, CONFIG, RAIN_TREND,
@@ -17,7 +19,9 @@ enum key {
     THIRD_LINE_TREND,
     // Appended: holiday highlighting moved to PKJS — anchored bitmask of the
     // visible calendar window (see calendar_layer.c / app_message.c).
-    HOLIDAY_ANCHOR, HOLIDAY_MASK
+    HOLIDAY_ANCHOR, HOLIDAY_MASK,
+    // Appended: uint8 forecast encoding — min/max scalars + migration sentinel.
+    TEMP_MIN, TEMP_MAX, TREND_ENCODING_VERSION
 };
 
 // Setters report whether the stored value actually changed so callers can
@@ -62,16 +66,29 @@ static bool write_string_if_changed(const uint32_t key, const char *val) {
     return true;
 }
 
+// Trends are stored as uint8 (0..250) but the shared chart engine consumes
+// int16 (it also serves the radar at 0..1000). Widen at read into a reused
+// scratch — single-threaded, one redraw at a time.
+static uint8_t s_trend_widen[24]; // MAX_FORECAST_ENTRIES
+
+static int read_trend_widened(uint32_t key, int16_t *out, size_t n) {
+    if (n > sizeof(s_trend_widen)) { n = sizeof(s_trend_widen); }
+    int bytes = persist_read_data(key, s_trend_widen, n);
+    if (bytes <= 0) { return bytes; }
+    for (int i = 0; i < bytes; i++) { out[i] = (int16_t) s_trend_widen[i]; }
+    return bytes;
+}
+
 int persist_get_temp_trend(int16_t *buffer, const size_t buffer_size) {
-    return persist_read_data(TEMP_TREND, (void*) buffer, buffer_size * sizeof(int16_t));
+    return read_trend_widened(TEMP_TREND, buffer, buffer_size);
 }
 
 int persist_get_line_trend(int16_t *buffer, const size_t buffer_size) {
-    return persist_read_data(LINE_TREND, (void*) buffer, buffer_size * sizeof(int16_t));
+    return read_trend_widened(LINE_TREND, buffer, buffer_size);
 }
 
 int persist_get_third_line_trend(int16_t *buffer, const size_t buffer_size) {
-    return persist_read_data(THIRD_LINE_TREND, (void*) buffer, buffer_size * sizeof(int16_t));
+    return read_trend_widened(THIRD_LINE_TREND, buffer, buffer_size);
 }
 
 bool persist_third_line_present(void) {
@@ -79,7 +96,7 @@ bool persist_third_line_present(void) {
 }
 
 int persist_get_bar_trend(int16_t *buffer, const size_t buffer_size) {
-    return persist_read_data(BAR_TREND, (void*) buffer, buffer_size * sizeof(int16_t));
+    return read_trend_widened(BAR_TREND, buffer, buffer_size);
 }
 
 int persist_get_line_count(void) {
@@ -136,38 +153,25 @@ bool persist_has_config() {
     return persist_exists(CONFIG);
 }
 
-bool persist_set_temp_trend(int16_t *data, const size_t size) {
-    return write_data_if_changed(TEMP_TREND, data, size * sizeof(int16_t));
+bool persist_set_temp_trend(uint8_t *data, const size_t size) {
+    return write_data_if_changed(TEMP_TREND, data, size);
 }
 
-bool persist_set_line_trend(int16_t *data, const size_t size) {
-    // Store the element count so an off/empty series reads back as count 0
-    // without depending on stale trend bytes.
+bool persist_set_line_trend(uint8_t *data, const size_t size) {
     bool changed = write_int_if_changed(LINE_COUNT, (int) size);
-    if (size > 0) {
-        changed |= write_data_if_changed(LINE_TREND, data, size * sizeof(int16_t));
-    }
+    if (size > 0) { changed |= write_data_if_changed(LINE_TREND, data, size); }
     return changed;
 }
 
-bool persist_set_third_line_trend(int16_t *data, const size_t size) {
-    // Presence == existence of the trend key: write it when gusts are on, delete
-    // it when off, so a cold boot never redraws a stale gust line.
-    if (size > 0) {
-        return write_data_if_changed(THIRD_LINE_TREND, data, size * sizeof(int16_t));
-    }
-    if (persist_exists(THIRD_LINE_TREND)) {
-        persist_delete(THIRD_LINE_TREND);
-        return true;
-    }
+bool persist_set_third_line_trend(uint8_t *data, const size_t size) {
+    if (size > 0) { return write_data_if_changed(THIRD_LINE_TREND, data, size); }
+    if (persist_exists(THIRD_LINE_TREND)) { persist_delete(THIRD_LINE_TREND); return true; }
     return false;
 }
 
-bool persist_set_bar_trend(int16_t *data, const size_t size) {
+bool persist_set_bar_trend(uint8_t *data, const size_t size) {
     bool changed = write_int_if_changed(BAR_COUNT, (int) size);
-    if (size > 0) {
-        changed |= write_data_if_changed(BAR_TREND, data, size * sizeof(int16_t));
-    }
+    if (size > 0) { changed |= write_data_if_changed(BAR_TREND, data, size); }
     return changed;
 }
 
@@ -233,6 +237,25 @@ bool persist_set_holiday_mask(uint32_t val) {
 
 uint32_t persist_get_holiday_mask(void) {
     return persist_exists(HOLIDAY_MASK) ? (uint32_t) persist_read_int(HOLIDAY_MASK) : 0u;
+}
+
+bool persist_set_temp_min(int v) { return write_int_if_changed(TEMP_MIN, v); }
+bool persist_set_temp_max(int v) { return write_int_if_changed(TEMP_MAX, v); }
+int  persist_get_temp_min(void) { return persist_exists(TEMP_MIN) ? persist_read_int(TEMP_MIN) : 0; }
+int  persist_get_temp_max(void) { return persist_exists(TEMP_MAX) ? persist_read_int(TEMP_MAX) : 0; }
+
+void persist_migrate_trend_encoding(void) {
+    int v = persist_exists(TREND_ENCODING_VERSION) ? persist_read_int(TREND_ENCODING_VERSION) : 1;
+    if (v == TREND_ENCODING_VERSION_CURRENT) { return; }
+    // Pre-uint8 watches hold int16 trends that would misread as uint8. Drop
+    // them and zero NUM_ENTRIES so loading_layer_data_is_fresh() reports false
+    // → startup tells the phone to resend the full uint8 payload.
+    persist_delete(TEMP_TREND); persist_delete(LINE_TREND);
+    persist_delete(BAR_TREND);  persist_delete(THIRD_LINE_TREND);
+    persist_delete(LINE_COUNT); persist_delete(BAR_COUNT);
+    persist_delete(TEMP_MIN);   persist_delete(TEMP_MAX);
+    persist_set_num_entries(0);
+    persist_write_int(TREND_ENCODING_VERSION, TREND_ENCODING_VERSION_CURRENT);
 }
 
 bool persist_set_city(char *val) {

@@ -39,13 +39,13 @@ int persist_get_config(Config *config);
 
 bool persist_has_config();
 
-bool persist_set_temp_trend(int16_t *data, const size_t size);
+bool persist_set_temp_trend(uint8_t *data, const size_t size);
 
-bool persist_set_line_trend(int16_t *data, const size_t size);
+bool persist_set_line_trend(uint8_t *data, const size_t size);
 
-bool persist_set_third_line_trend(int16_t *data, const size_t size);
+bool persist_set_third_line_trend(uint8_t *data, const size_t size);
 
-bool persist_set_bar_trend(int16_t *data, const size_t size);
+bool persist_set_bar_trend(uint8_t *data, const size_t size);
 
 bool persist_set_line_color(GColor color);
 
@@ -94,3 +94,13 @@ int32_t persist_get_holiday_anchor(void);
 bool persist_set_holiday_mask(uint32_t val);
 
 uint32_t persist_get_holiday_mask(void);
+
+bool persist_set_temp_min(int v);
+
+bool persist_set_temp_max(int v);
+
+int persist_get_temp_min(void);
+
+int persist_get_temp_max(void);
+
+void persist_migrate_trend_encoding(void);

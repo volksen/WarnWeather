@@ -5,7 +5,7 @@
 #include "c/appendix/snooze.h"
 #include "c/layers/layer_util.h"
 
-#define FONT_18_OFFSET 7
+#define FONT_18_OFFSET 7 //#7
 #define FONT_14_OFFSET 3
 #define MARGIN 2
 // Width reserved for the snooze glyphs in place of the current-temp text.
@@ -45,7 +45,7 @@ static GRect frame_sun_draw;
 // Text buffers, file-scope so the update proc can paint them (formerly the
 // function-static buffers behind each TextLayer's text pointer).
 static char s_city_buffer[20];
-static char s_temp_buffer[8];
+static char s_temp_buffer[9];
 static char s_sun_buffer[8];
 
 static Layer *s_weather_status_layer;
@@ -64,7 +64,7 @@ static const GPathInfo ARROW_PATH_INFO = {
     }
 };
 
-static GFont temp_font(void) { return fonts_get_system_font(FONT_KEY_GOTHIC_18); }
+static GFont temp_font(void) { return fonts_get_system_font(FONT_KEY_GOTHIC_24); }
 static GFont city_font(void) { return fonts_get_system_font(CITY_FONT_KEY); }
 static GFont sun_font(void)  { return fonts_get_system_font(SUN_EVENT_FONT_KEY); }
 
@@ -78,7 +78,7 @@ static void current_temp_layer_refresh() {
         frame_curr_temp = GRect(0, -FONT_18_OFFSET, SNOOZE_BOX_W + MARGIN, 24);
         return;
     }
-    snprintf(s_temp_buffer, sizeof(s_temp_buffer), "• %d",
+    snprintf(s_temp_buffer, sizeof(s_temp_buffer), "• %d°",
              config_localize_temp(persist_get_current_temp()));
     GSize size = graphics_text_layout_get_content_size(
         s_temp_buffer, temp_font(), GRect(0, 0, 100, 100),

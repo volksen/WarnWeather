@@ -22,7 +22,7 @@
 #endif
 
 static Layer *s_calendar_status_layer;
-static char s_calendar_month_text[10];
+static char s_calendar_month_text[14];
 static GBitmap *s_mute_bitmap;
 static GBitmap *s_bt_bitmap;
 static GBitmap *s_bt_disconnect_bitmap;
@@ -214,7 +214,7 @@ void calendar_status_layer_tick() {
 
 void calendar_status_layer_refresh() {
     struct tm tm_now = watch_services_localtime();
-    strftime(s_calendar_month_text, sizeof(s_calendar_month_text), "%b %Y", &tm_now);
+    strftime(s_calendar_month_text, sizeof(s_calendar_month_text), "%d. %b %Y", &tm_now);
     status_icons_refresh();
 }
 

@@ -46,9 +46,9 @@ static void tap_handler(AccelAxisType axis, int32_t direction) {
 }
 
 #define FORECAST_HEIGHT 51
-#define WEATHER_STATUS_HEIGHT 14
+#define WEATHER_STATUS_HEIGHT 19
 #define TIME_HEIGHT 45
-#define CALENDAR_HEIGHT 45
+#define CALENDAR_HEIGHT 40
 #define EMERY_WINDOW_PAD_X 2
 #define EMERY_WINDOW_PAD_TOP 2
 #define EMERY_WINDOW_PAD_BOTTOM 4

@@ -1,7 +1,7 @@
 {
-  "name": "warnweather",
-  "author": "Toasbi",
-  "version": "1.4.0",
+  "name": "my_warnweather",
+  "author": "volksen",
+  "version": "1.6.0",
   "buildProfile": "dev",
   "keywords": [
     "pebble-app"
@@ -11,8 +11,8 @@
     "suncalc": "^1.9.0"
   },
   "pebble": {
-    "displayName": "WarnWeather (Dev)",
-    "uuid": "5245a6ea-b3c4-45a1-b24c-30a88f330965",
+    "displayName": "MyWarnWeather (Dev)",
+    "uuid": "1234a6ea-b3c4-45a1-b24c-30a88f330965",
     "sdkVersion": "3",
     "enableMultiJS": true,
     "targetPlatforms": [
@@ -154,12 +154,20 @@
     "1.4.0": {
       "title": "Thanks for updating!",
       "body": "WarnWeather 1.4.0 adds public-holiday highlighting for many countries and regions, plus a configurable GPS location cache. Adjust your forecast, rain radar, holidays, and calendar in settings."
+    },
+    "1.4.1": {
+      "title": "Thanks for updating!",
+      "body": "WarnWeather 1.4.1 expands public-holiday highlighting to 150+ countries worldwide with refined regional pickers. Adjust your forecast, rain radar, holidays, and calendar in settings."
+    },
+    "1.5.0": {
+      "title": "UV index + third graph line",
+      "body": "Pick what the forecast graph's secondary and new third line show — precip, wind, gust or UV index."
     }
   },
   "releaseNotification": {
     "enabled": true,
-    "title": "Thanks for updating!",
-    "body": "WarnWeather 1.4.0 adds public-holiday highlighting for many countries and regions, plus a configurable GPS location cache. Adjust your forecast, rain radar, holidays, and calendar in settings."
+    "title": "UV index + third graph line",
+    "body": "Pick what the forecast graph's secondary and new third line show — precip, wind, gust or UV index."
   },
   "telemetry": {
     "enabled": false,

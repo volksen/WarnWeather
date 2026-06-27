@@ -72,7 +72,7 @@ static bool handle_forecast(DictionaryIterator *iterator, bool *forecast_dirty) 
         changed |= persist_set_line_fill((bool)(line_fill_tuple->value->int16));
     }
     // Third line: empty/missing trend ⇒ off (persist_set deletes the key). Mirrors
-    // the line/bar handling. THIRD_LINE_COLOR colors it per metric (the dashed line
+    // the line/bar handling. THIRD_LINE_COLOR colors it per metric (the dotted line
     // is no longer always white); absent ⇒ persisted default (white) on read.
     changed |= persist_set_third_line_trend(
         third_count ? (uint8_t*) third_trend_tuple->value->data : NULL, third_count);

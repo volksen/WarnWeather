@@ -122,8 +122,8 @@ typedef struct {
     GColor fill_color;        // area-fill color (day), chosen per-metric by PKJS
     bool line_fill;           // shade the area under the line (metric color; gray on B&W)
     int16_t third_line[MAX_FORECAST_ENTRIES]; // permille third-line series; present via persist_exists
-    int     third_line_present;               // nonzero ⇒ draw the dashed third line
-    GColor third_line_color;                  // per-metric stroke color for the dashed third line
+    int     third_line_present;               // nonzero ⇒ draw the dotted second-metric line
+    GColor third_line_color;                  // per-metric stroke color for the dotted second-metric line
     int temp_lo;
     int temp_hi;
 } ForecastDataset;
@@ -707,14 +707,14 @@ static void forecast_update_proc(Layer *layer, GContext *ctx)
             .stops = scaled_bar_stops, .num_stops = bar_num_stops,
             .style = PBL_IF_COLOR_ELSE(BAR_SOLID, BAR_OUTLINED) } };
     }
-    // Third line: dashed, drawn under the solid secondary line. Per-metric color on
-    // color watches; white on B&W, where the dash pattern (not color) distinguishes
-    // it from the solid secondary line.
+    // Second metric: round dots, drawn under the solid main-metric line. Per-metric color on
+    // color watches; white on B&W, where the dots (not color) distinguish
+    // it from the solid main-metric line.
     if (ds.third_line_present) {
         layers[n++] = (ChartLayer){ CHART_LAYER_LINE, .line = {
             .values = ds.third_line, .count = ds.num_entries,
             .lo = 0, .hi = FORECAST_TREND_FULL_SCALE, .inset_y = 0,
-            .color = PBL_IF_COLOR_ELSE(ds.third_line_color, GColorWhite), .width = 1, .dashed = true } };
+            .color = PBL_IF_COLOR_ELSE(ds.third_line_color, GColorWhite), .width = 1, .dotted = true } };
     }
     if (line_on) {
         layers[n++] = fill_on

@@ -163,22 +163,16 @@ static void chart_render_bars(const ChartRender *r, const ChartBarsLayer *b) {
     }
 }
 
-// Stroke a dash-dot-dot 1px polyline with integer DDA stepping (no float — project
-// constraint). The pattern phase carries across segment boundaries so the dash
-// pattern is continuous over the whole polyline. Mirrors the per-pixel approach
-// in rain_radar_layer.c's nearby_border_* helpers, generalized to any slope.
-// Always draws 1px pixels regardless of ChartLineLayer.width — dashed lines are 1px by design.
-static void chart_stroke_dashed(GContext *ctx, const GPoint *pts, int count, GColor color) {
-    // Dash-dot-dot pattern, 1 = pen down: a 5-px dash, gap, 1-px dot, gap, 1-px
-    // dot, gap (period 13). The dash+dots texture cannot be mimicked by the night
-    // hatch's uniform 6/7-px diagonal dots, and period 13 avoids resonating with
-    // that spacing — so the gust line stays legible over the hatch (worst on
-    // aplite, both white).
-    static const uint8_t DASH_DOT[] = {1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0};
-    const int PATTERN_LEN = (int) sizeof(DASH_DOT);
-    graphics_context_set_stroke_color(ctx, color);
-    graphics_context_set_stroke_width(ctx, 1);
-    int phase = 0;   // index into DASH_DOT; carries across segments for a continuous pattern
+// Stroke a polyline as evenly-spaced round dots (~3px diameter ≈ the temperature line
+// width) with integer DDA stepping (no float — project constraint). The dot phase carries
+// across segment boundaries so spacing is even over the whole polyline. PERIOD avoids the
+// night hatch's ~6–7px diagonal spacing so the dots stay legible over it (worst on aplite,
+// both white). Replaces the former dash-dot-dot pattern; the second metric is now dotted.
+static void chart_stroke_dotted(GContext *ctx, const GPoint *pts, int count, GColor color) {
+    const int PERIOD = 8;   // center-to-center px between dots; avoids 6/7-px hatch resonance
+    const int RADIUS = 1;   // 3px-diameter dot ≈ temperature line width (3)
+    graphics_context_set_fill_color(ctx, color);
+    int dist = 0;   // running step count; carries across segments for even spacing
     for (int i = 0; i + 1 < count; ++i) {
         const int x0 = pts[i].x,     y0 = pts[i].y;
         const int dx = pts[i+1].x - x0, dy = pts[i+1].y - y0;
@@ -186,13 +180,15 @@ static void chart_stroke_dashed(GContext *ctx, const GPoint *pts, int count, GCo
         const int ady = dy < 0 ? -dy : dy;
         const int steps = adx > ady ? adx : ady;   // walk the dominant axis
         if (steps == 0) { continue; }
-        // First segment includes s=0; later segments start at 1 so the shared
-        // joint pixel (and its phase tick) is counted once, not twice.
+        // First segment includes s=0; later segments start at 1 so the shared joint pixel
+        // (and its phase tick) is counted once, not twice.
         for (int s = (i == 0 ? 0 : 1); s <= steps; ++s) {
-            const int x = x0 + (int)(((int32_t) dx * s) / steps);
-            const int y = y0 + (int)(((int32_t) dy * s) / steps);
-            if (DASH_DOT[phase]) { graphics_draw_pixel(ctx, GPoint(x, y)); }
-            if (++phase >= PATTERN_LEN) { phase = 0; }
+            if (dist % PERIOD == 0) {
+                const int x = x0 + (int)(((int32_t) dx * s) / steps);
+                const int y = y0 + (int)(((int32_t) dy * s) / steps);
+                graphics_fill_circle(ctx, GPoint(x, y), RADIUS);
+            }
+            ++dist;
         }
     }
 }
@@ -220,8 +216,8 @@ static void chart_render_line(const ChartRender *r, const ChartLineLayer *l) {
         pts = out;
     }
 
-    if (l->dashed) {
-        chart_stroke_dashed(r->ctx, pts, count, l->color);
+    if (l->dotted) {
+        chart_stroke_dotted(r->ctx, pts, count, l->color);
     } else {
         GPath path = { .num_points = (uint32_t)count, .points = (GPoint *)pts };
         graphics_context_set_stroke_color(r->ctx, l->color);

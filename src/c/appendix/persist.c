@@ -26,7 +26,7 @@ enum key {
     // Appended: persisted rain/radar color palettes (packed wire blobs, 3 B/stop)
     // so custom colors survive a watchface relaunch (palette is otherwise RAM-only).
     BAR_PALETTE, RADAR_PALETTE,
-    // Appended: per-metric stroke color for the (dashed) third line. Presence still
+    // Appended: per-metric stroke color for the (dotted) third line. Presence still
     // tracked via THIRD_LINE_TREND; this only colors it (defaults white when absent).
     THIRD_LINE_COLOR
 };

@@ -126,8 +126,9 @@ static void main_window_load(Window *window) {
     app_message_send_startup_state(loading_layer_data_is_fresh());
     // The top view is session-only state: every launch starts on the calendar
     // and a tap toggles to the radar whenever radar data is available.
-    apply_top_view(TOP_VIEW_CALENDAR);
-    accel_tap_service_subscribe(tap_handler);
+    //apply_top_view(TOP_VIEW_CALENDAR);
+    apply_top_view(TOP_VIEW_RAIN_RADAR );
+    //accel_tap_service_subscribe(tap_handler);
     MEMORY_LOG_HEAP("after_window_load");
 }
 

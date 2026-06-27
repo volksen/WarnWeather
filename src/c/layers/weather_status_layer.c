@@ -13,13 +13,15 @@
 
 // emery: use larger text and arrow geometry
 #ifdef PBL_PLATFORM_EMERY
-#define CITY_FONT_KEY FONT_KEY_GOTHIC_18
-#define SUN_EVENT_FONT_KEY FONT_KEY_GOTHIC_18
+#define CURR_TEMP_FONT_KEY FONT_KEY_GOTHIC_24
+#define CITY_FONT_KEY FONT_KEY_GOTHIC_24 //FONT_KEY_GOTHIC_18
+#define SUN_EVENT_FONT_KEY FONT_KEY_GOTHIC_24
 #define ARROW_H 10
 #define ARROW_HEAD_H 4
 #define ARROW_HEAD_W 3
 #define ARROW_W 8
 #else
+#define CURR_TEMP_FONT_KEY FONT_KEY_GOTHIC_18
 #define CITY_FONT_KEY FONT_KEY_GOTHIC_14
 #define SUN_EVENT_FONT_KEY FONT_KEY_GOTHIC_14
 #define ARROW_H 8
@@ -64,7 +66,7 @@ static const GPathInfo ARROW_PATH_INFO = {
     }
 };
 
-static GFont temp_font(void) { return fonts_get_system_font(FONT_KEY_GOTHIC_24); }
+static GFont temp_font(void) { return fonts_get_system_font(CURR_TEMP_FONT_KEY); }
 static GFont city_font(void) { return fonts_get_system_font(CITY_FONT_KEY); }
 static GFont sun_font(void)  { return fonts_get_system_font(SUN_EVENT_FONT_KEY); }
 

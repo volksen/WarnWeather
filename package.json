@@ -2,7 +2,7 @@
   "name": "my_warnweather",
   "author": "volksen",
   "version": "1.6.0",
-  "buildProfile": "dev",
+  "buildProfile": "release",
   "keywords": [
     "pebble-app"
   ],
@@ -11,7 +11,7 @@
     "suncalc": "^1.9.0"
   },
   "pebble": {
-    "displayName": "MyWarnWeather (Dev)",
+    "displayName": "MyWarnWeather",
     "uuid": "1234a6ea-b3c4-45a1-b24c-30a88f330965",
     "sdkVersion": "3",
     "enableMultiJS": true,

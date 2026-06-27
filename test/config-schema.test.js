@@ -7,6 +7,7 @@ const { REGION_OPTIONS } = require('../src/pkjs/settings/holiday-data.js');
 function allItems(s) { const out = []; s.tabs.forEach((t) => t.sections.forEach((sec) => sec.items.forEach((it) => out.push(it)))); return out; }
 const items = allItems(schema);
 const byKey = (k) => items.filter((i) => i.messageKey === k)[0];
+function forecastItems(s) { return s.tabs.find((t) => t.id === 'forecast').sections[0].items; }
 
 const EXPECTED_KEYS = [
   'timeLeadingZero','timeShowAmPm','axisTimeFormat','timeFont','colorTime',
@@ -18,10 +19,16 @@ const EXPECTED_KEYS = [
   'showQt','vibe','btIcons','telemetryEnabled','devStatsEnabled','devStatsClear'
 ];
 
-test('every Clay messageKey present exactly once', () => {
+test('every Clay messageKey present; only windScale is duplicated (two contextual slots)', () => {
   EXPECTED_KEYS.forEach((k) => assert.ok(byKey(k), 'missing messageKey: ' + k));
   const seen = items.filter((i) => i.messageKey).map((i) => i.messageKey);
-  assert.equal(seen.length, EXPECTED_KEYS.length, 'unexpected/duplicate keys: ' + seen.join(','));
+  const counts = {};
+  seen.forEach((k) => { counts[k] = (counts[k] || 0) + 1; });
+  const dups = Object.keys(counts).filter((k) => counts[k] > 1);
+  // windScale lives in two mutually-exclusive slots: under the solid line and under the dotted line.
+  assert.deepEqual(dups, ['windScale'], 'only windScale may repeat; got: ' + dups.join(','));
+  assert.equal(counts.windScale, 2, 'windScale appears in exactly two slots');
+  assert.deepEqual(Object.keys(counts).sort(), EXPECTED_KEYS.slice().sort());
 });
 
 test('location is a GPS/Manual picker; the text field is gated to Manual', () => {
@@ -97,10 +104,16 @@ test('UV hint explains the fixed 0-11 scale (parallel to precip percentage)', ()
   assert.match(hint, /half-height/);
 });
 
-test('windScale shows whenever wind or gust is on either line', () => {
-  const pred = byKey('windScale').showWhen;
-  const keys = pred.any.map((p) => p.key + ':' + p.eq).sort();
-  assert.deepEqual(keys, ['secondaryLine:gust', 'secondaryLine:wind', 'thirdLine:gust', 'thirdLine:wind']);
+test('windScale has two contextual slots gated to the line that enabled it', () => {
+  const slots = items.filter((i) => i.messageKey === 'windScale');
+  assert.equal(slots.length, 2, 'two windScale slots');
+  const slotA = slots.find((s) => s.showWhen && s.showWhen.key === 'secondaryLine');
+  const slotB = slots.find((s) => s.showWhen && s.showWhen.all);
+  assert.deepEqual(slotA.showWhen, { key: 'secondaryLine', in: ['wind', 'gust'] });
+  assert.deepEqual(slotB.showWhen, { all: [
+    { key: 'thirdLine', in: ['wind', 'gust'] },
+    { not: { key: 'secondaryLine', in: ['wind', 'gust'] } }
+  ] });
 });
 
 test('holiday country selector: searchSelect, default DE, None first, includes US/Sweden', () => {
@@ -146,4 +159,44 @@ test('gpsCacheMin: select, default 30, interval-derived options, GPS-only', () =
   assert.equal(g.options, undefined, 'options must be derived, not static');
   assert.deepEqual(g.optionsFrom, { interval: 'fetchIntervalMin', ladder: [30, 60, 120, 360, 720, 1440] });
   assert.deepEqual(g.showWhen, { key: 'locationMode', eq: 'gps' });
+});
+
+test('forecast line pickers use the new metric-oriented labels', () => {
+  assert.equal(byKey('secondaryLine').label, 'Main metric');
+  assert.equal(byKey('thirdLine').label, 'Second metric');
+  assert.equal(byKey('secondaryLineFill').label, 'Fill area below the line');
+});
+
+test('metric options are spelled out fully on both pickers', () => {
+  assert.deepEqual(byKey('secondaryLine').options, [
+    ['Precipitation %', 'precip_prob'], ['Wind speed', 'wind'], ['Wind gusts', 'gust'], ['UV Index', 'uv']
+  ]);
+  const map = byKey('thirdLine').optionsFrom.map;
+  const labelOf = (sec, val) => map[sec].find((o) => o[1] === val)[0];
+  assert.equal(map.precip_prob[0][0], 'Off');
+  assert.equal(labelOf('wind', 'precip_prob'), 'Precipitation %');
+  assert.equal(labelOf('precip_prob', 'gust'), 'Wind gusts');
+  assert.equal(labelOf('precip_prob', 'uv'), 'UV Index');
+  assert.equal(labelOf('gust', 'wind'), 'Wind speed');
+});
+
+test('Second metric picker hints note that it is drawn as dots', () => {
+  const hints = byKey('thirdLine').hintByValue;
+  ['precip_prob', 'wind', 'gust', 'uv'].forEach((m) => {
+    assert.match(hints[m], /drawn as dots/i, m + ' hint should mention dots');
+  });
+  assert.match(hints.off, /No second metric/i);
+});
+
+test('forecast tab nests fill and wind scale under the line that enables them', () => {
+  const keys = forecastItems(schema).map((i) => i.messageKey).filter(Boolean);
+  const iSolid = keys.indexOf('secondaryLine');
+  const iFill = keys.indexOf('secondaryLineFill');
+  const iThird = keys.indexOf('thirdLine');
+  assert.ok(iSolid >= 0 && iFill > iSolid && iThird > iFill,
+    'order must be Main metric -> Fill area -> Second metric; got ' + keys.join(','));
+  const windIdxs = keys.reduce((a, k, i) => (k === 'windScale' ? a.concat(i) : a), []);
+  assert.equal(windIdxs.length, 2, 'two wind-scale slots');
+  assert.ok(windIdxs[0] > iFill && windIdxs[0] < iThird, 'solid-line wind scale sits under the solid line');
+  assert.ok(windIdxs[1] > iThird, 'dotted-line wind scale sits under the dotted line');
 });

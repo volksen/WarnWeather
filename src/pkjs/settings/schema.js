@@ -19,14 +19,25 @@ var LINE_HINTS = {
     uv: 'UV index each hour<br>— half-height = UV 5.5<br>— full-height = UV 11 (extreme)',
     off: 'No third line — temperature and the secondary line only.'
 };
+// The second metric renders as dots; its picker reuses the per-metric LINE_HINTS prose with a
+// dots note appended. Separate from LINE_HINTS because hintByValue REPLACES item.hint (no append),
+// and LINE_HINTS is shared with the solid main-metric picker (which must not show the dots note).
+var DOTS_NOTE = '<br>Drawn as dots on the watch.';
+var THIRD_LINE_HINTS = {
+    precip_prob: LINE_HINTS.precip_prob + DOTS_NOTE,
+    wind: LINE_HINTS.wind + DOTS_NOTE,
+    gust: LINE_HINTS.gust + DOTS_NOTE,
+    uv: LINE_HINTS.uv + DOTS_NOTE,
+    off: 'No second metric — temperature and the main metric only.'
+};
 // Third-line options derived from the secondary metric: Off plus the three metrics
 // the secondary line is NOT using, so the same metric can't be picked on both lines.
 // The engine's display-snap resets thirdLine if it ever collides (see engine.js).
 var THIRD_LINE_OPTIONS = {
-    precip_prob: [['Off', 'off'], ['Wind', 'wind'], ['Gust', 'gust'], ['UV', 'uv']],
-    wind:        [['Off', 'off'], ['Precip', 'precip_prob'], ['Gust', 'gust'], ['UV', 'uv']],
-    gust:        [['Off', 'off'], ['Precip', 'precip_prob'], ['Wind', 'wind'], ['UV', 'uv']],
-    uv:          [['Off', 'off'], ['Precip', 'precip_prob'], ['Wind', 'wind'], ['Gust', 'gust']]
+    precip_prob: [['Off', 'off'], ['Wind speed', 'wind'], ['Wind gusts', 'gust'], ['UV Index', 'uv']],
+    wind:        [['Off', 'off'], ['Precipitation %', 'precip_prob'], ['Wind gusts', 'gust'], ['UV Index', 'uv']],
+    gust:        [['Off', 'off'], ['Precipitation %', 'precip_prob'], ['Wind speed', 'wind'], ['UV Index', 'uv']],
+    uv:          [['Off', 'off'], ['Precipitation %', 'precip_prob'], ['Wind speed', 'wind'], ['Wind gusts', 'gust']]
 };
 // Color swatches (5 intensity bands) — shown only in the Multicolor hint.
 var SWATCHES = '<span style="display:inline-flex;gap:7px;margin-top:6px;align-items:flex-end;">' + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:8px;border-radius:2px;background:#AAAAAA;margin-bottom:3px;"></span>0.1</span>' + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:8px;border-radius:2px;background:#55FFFF;margin-bottom:3px;"></span>0.5</span>' + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:8px;border-radius:2px;background:#00FF00;margin-bottom:3px;"></span>2</span>' + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:8px;border-radius:2px;background:#FFFF00;margin-bottom:3px;"></span>10</span>' + '<span style="text-align:center;font-size:10px;color:#8A92A0;"><span style="display:block;width:17px;height:8px;border-radius:2px;background:#FF5555;margin-bottom:3px;"></span>40</span>' + '</span>';
@@ -125,28 +136,20 @@ module.exports = {
         }]
     }, {
         id: 'forecast', label: 'Forecast', sections: [{
-            intro: 'The forecast graph looks up to 24 hours ahead. Temperature is always shown; on top of it the secondary line shows one of precip chance, wind, gust or UV, and an optional third line adds a second metric (dashed) — plus optional bars for the hourly rain amount.',
+            intro: 'The forecast graph looks up to 24 hours ahead. Temperature is always shown; on top of it the main metric (a solid line) shows one of precipitation %, wind speed, wind gusts or UV index, and an optional second metric (drawn as dots) adds another — plus optional bars for the hourly rain amount.',
             items: [{
                 type: 'select',
                 messageKey: 'secondaryLine',
-                label: 'Secondary line',
+                label: 'Main metric',
                 defaultValue: 'precip_prob',
                 hintByValue: LINE_HINTS,
-                options: [['Precip', 'precip_prob'], ['Wind', 'wind'], ['Gust', 'gust'], ['UV', 'uv']],
+                options: [['Precipitation %', 'precip_prob'], ['Wind speed', 'wind'], ['Wind gusts', 'gust'], ['UV Index', 'uv']],
                 blockBefore: 'forecastPreview',
                 blockBeforeSticky: true
             }, {
-                type: 'select',
-                messageKey: 'thirdLine',
-                label: 'Third line',
-                defaultValue: 'off',
-                joinPrevious: true,
-                hintByValue: LINE_HINTS,
-                optionsFrom: { byKey: 'secondaryLine', map: THIRD_LINE_OPTIONS }
-            }, {
                 type: 'toggle',
                 messageKey: 'secondaryLineFill',
-                label: 'Secondary line fill',
+                label: 'Fill area below the line',
                 defaultValue: true,
                 joinPrevious: true,
                 hint: 'Fills the area beneath the curve. Precip only.',
@@ -163,9 +166,30 @@ module.exports = {
                     high: 'Tops out at 70 km/h (43 mph) — keeps strong gusts from flattening against the top.'
                 },
                 options: [['Low', 'low'], ['Mid', 'mid'], ['High', 'high']],
-                showWhen: {any: [
-                    {key: 'secondaryLine', eq: 'wind'}, {key: 'secondaryLine', eq: 'gust'},
-                    {key: 'thirdLine', eq: 'wind'}, {key: 'thirdLine', eq: 'gust'}
+                showWhen: {key: 'secondaryLine', in: ['wind', 'gust']}
+            }, {
+                type: 'select',
+                messageKey: 'thirdLine',
+                label: 'Second metric',
+                defaultValue: 'off',
+                joinPrevious: true,
+                hintByValue: THIRD_LINE_HINTS,
+                optionsFrom: { byKey: 'secondaryLine', map: THIRD_LINE_OPTIONS }
+            }, {
+                type: 'segmented',
+                messageKey: 'windScale',
+                label: 'Wind graph scale',
+                defaultValue: 'mid',
+                joinPrevious: true,
+                hintByValue: {
+                    low: 'Tops out at 30 km/h (19 mph) — emphasizes light, gentle winds.',
+                    mid: 'Tops out at 50 km/h (31 mph) — general use; gusts visible, typical winds sit mid-graph.',
+                    high: 'Tops out at 70 km/h (43 mph) — keeps strong gusts from flattening against the top.'
+                },
+                options: [['Low', 'low'], ['Mid', 'mid'], ['High', 'high']],
+                showWhen: {all: [
+                    {key: 'thirdLine', in: ['wind', 'gust']},
+                    {not: {key: 'secondaryLine', in: ['wind', 'gust']}}
                 ]}
             }, {
                 type: 'segmented',

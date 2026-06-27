@@ -34,9 +34,9 @@ FORECAST
 - 24-hour weather forecast with configurable update frequency
 - Current temperature
 - Temperature forecast line
-- Optional secondary line and optional third line — each independently shows precipitation
-  probability, wind speed, wind gust, or UV index (same metric can't appear on both lines);
-  the wind line shows a dotted gust line above it
+- Optional main metric (solid line) and optional second metric (drawn as round dots) — each
+  independently shows precipitation %, wind speed, wind gusts, or UV index (same metric can't
+  appear on both lines)
 - Optional hourly rain bars — multicolor or white on color watches
 - Optional day/night hatch shading on the graph
 - Fahrenheit and Celsius temperatures

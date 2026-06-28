@@ -21,9 +21,6 @@ typedef struct {
     uint32_t color_key;     // 0 = no per-series single-color tuple
 } SeriesWire;
 
-// MESSAGE_KEY_* are uint32_t globals (generated), not compile-time constants —
-// WIRE is initialized at the start of handle_forecast from these runtime values.
-
 static bool handle_forecast(DictionaryIterator *iterator, bool *forecast_dirty) {
     Tuple *temp_trend_tuple = dict_find(iterator, MESSAGE_KEY_TEMP_TREND_UINT8);
     Tuple *forecast_start_tuple = dict_find(iterator, MESSAGE_KEY_FORECAST_START);

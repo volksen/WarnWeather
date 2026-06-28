@@ -441,7 +441,7 @@ static void forecast_update_proc(Layer *layer, GContext *ctx)
                                         (ds.num_entries - 1)
                                             * chart_def_pitch(&FORECAST_DEF),
                                         outer.size.h - 1);
-    static ChartBand night_bands[3];   // NightSegments holds at most 3
+    static ChartBand night_bands[3];   // aplite: per-frame scratch — static not stack; NightSegments holds at most 3
     int num_night_bands = 0;
     if (night_on) {
         num_night_bands = build_night_bands(night_bands, 3, &night_segments,

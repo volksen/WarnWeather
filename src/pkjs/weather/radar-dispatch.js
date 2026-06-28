@@ -11,20 +11,21 @@ function clearRadarTuples() {
 
 /**
  * Decide which radar tuples to ship based on the configured radar provider,
- * independent of the forecast provider.
+ * using pre-resolved coordinates (single per-cycle acquisition).
  *
  * @param {string} radarProvider Configured radar source ('dwd' or 'disabled').
  * @param {Object} deps Dependencies.
- * @param {Object} deps.provider Coordinate source (exposes withCoordinates).
+ * @param {number} deps.lat Latitude in decimal degrees.
+ * @param {number} deps.lon Longitude in decimal degrees.
  * @param {number} deps.slotZeroEpoch The 5-min pinned slot-0 epoch.
- * @param {Function} deps.fetchDwd fetchDwd(provider, slotZeroEpoch, cb) -> cb(tuples|null).
+ * @param {Function} deps.fetchDwdAt fetchDwdAt(lat, lon, slotZeroEpoch, cb) -> cb(tuples|null).
  * @param {Function} callback Receives a radar tuples object, or null to preserve
  *   the watch's existing radar (DWD transient failure).
  * @returns {void}
  */
-function dispatchRadarTuples(radarProvider, deps, callback) {
+function dispatchRadarTuplesAt(radarProvider, deps, callback) {
     if (radarProvider === 'dwd') {
-        deps.fetchDwd(deps.provider, deps.slotZeroEpoch, callback);
+        deps.fetchDwdAt(deps.lat, deps.lon, deps.slotZeroEpoch, callback);
         return;
     }
     // 'disabled' or any unknown/unset value: clear radar on the watch.
@@ -32,6 +33,6 @@ function dispatchRadarTuples(radarProvider, deps, callback) {
 }
 
 module.exports = {
-    dispatchRadarTuples: dispatchRadarTuples,
+    dispatchRadarTuplesAt: dispatchRadarTuplesAt,
     clearRadarTuples: clearRadarTuples
 };

@@ -288,38 +288,33 @@ function withRadar2hRain(lat, lon, slotZeroEpoch, onSuccess, onFailure) {
 }
 
 /**
- * Fetch 2-hour DWD rain-radar tuples using a coordinate source.
+ * Fetch 2-hour DWD rain-radar tuples for pre-resolved coordinates.
  *
- * Independent of the forecast provider: `coordsProvider` is used only to
- * resolve lat/lon via its withCoordinates method, so DWD radar works even
- * when the active forecast provider is Wunderground or OpenWeatherMap.
+ * Coordinates come from the single per-cycle acquisition in the orchestrator;
+ * this function no longer resolves them itself.
  *
- * @param {Object} coordsProvider Object exposing withCoordinates(onOk, onErr).
+ * @param {number} lat Latitude in decimal degrees.
+ * @param {number} lon Longitude in decimal degrees.
  * @param {number} slotZeroEpoch The 5-min pinned slot-0 epoch.
  * @param {Function} callback Receives the radar tuples object, or null on
  *   failure (null preserves the watch's existing radar).
  * @returns {void}
  */
-function fetchRadarTuples(coordsProvider, slotZeroEpoch, callback) {
-    coordsProvider.withCoordinates(function(lat, lon) {
-        withRadar2hRain(lat, lon, slotZeroEpoch, function(result) {
-            callback({
-                RAIN_RADAR_TREND_UINT8: result.exact,
-                RAIN_RADAR_TREND_AREA_UINT8: result.nearby_1km,
-                RAIN_RADAR_START: slotZeroEpoch
-            });
-        }, function(err) {
-            console.log('Rain-radar fetch failed: ' + JSON.stringify(err));
-            // null preserves existing radar on the watch
-            callback(null);
+function fetchRadarTuplesAt(lat, lon, slotZeroEpoch, callback) {
+    withRadar2hRain(lat, lon, slotZeroEpoch, function(result) {
+        callback({
+            RAIN_RADAR_TREND_UINT8: result.exact,
+            RAIN_RADAR_TREND_AREA_UINT8: result.nearby_1km,
+            RAIN_RADAR_START: slotZeroEpoch
         });
     }, function(err) {
-        console.log('Rain-radar coords failed: ' + JSON.stringify(err));
+        console.log('Rain-radar fetch failed: ' + JSON.stringify(err));
+        // null preserves existing radar on the watch
         callback(null);
     });
 }
 
 module.exports = {
     withRadar2hRain: withRadar2hRain,
-    fetchRadarTuples: fetchRadarTuples
+    fetchRadarTuplesAt: fetchRadarTuplesAt
 };

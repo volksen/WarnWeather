@@ -23,8 +23,8 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 platforms=(aplite basalt diorite emery flint)
 
 # Parallel arrays: fixture -> output label. Order is the shot order (1-based round).
-fixtures=(store-calendar berlin            windy        store-wind-radar)
-labels=(  1-calendar     2-radar-multicolor 3-wind-gust 4-radar-white-wind)
+fixtures=(store-calendar berlin            windy        store-wind-radar  precip-uv)
+labels=(  1-calendar     2-radar-multicolor 3-wind-gust 4-radar-white-wind 5-precip-uv)
 
 if (( start_round < 1 || start_round > ${#fixtures[@]} )); then
   printf 'start-round must be between 1 and %d\n' "${#fixtures[@]}" >&2

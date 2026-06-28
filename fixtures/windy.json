@@ -21,7 +21,8 @@
     "axisTimeFormat": "24h",
     "secondaryLine": "wind",
     "windScale": "high",
-    "secondaryLineFill": false,
+    "secondaryLineFill": true,
+    "thirdLine": "gust",
     "barSource": "off",
     "rainBarColor": "multicolor",
     "radarColor": "multicolor"

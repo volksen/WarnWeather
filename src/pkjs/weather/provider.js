@@ -459,6 +459,35 @@ WeatherProvider.prototype.withGeocodeCoordinates = function(callback, onFailure)
 };
 
 /**
+ * Read and validate the cached GPS fix from localStorage.
+ *
+ * @returns {?{lat: number, lon: number, time: number}} The parsed fix, or null
+ *   when it is absent, corrupt, or missing a required numeric field.
+ */
+function readGpsCache() {
+    var raw = localStorage.getItem(GPS_CACHE_KEY);
+    var parsed;
+    if (raw === null) {
+        return null;
+    }
+    try {
+        parsed = JSON.parse(raw);
+    }
+    catch (ex) {
+        return null;
+    }
+    if (
+        parsed &&
+        typeof parsed.lat === 'number' &&
+        typeof parsed.lon === 'number' &&
+        typeof parsed.time === 'number'
+    ) {
+        return parsed;
+    }
+    return null;
+}
+
+/**
  * Resolve coordinates from device GPS, falling back to a fresh-enough cached
  * fix on error. Sets usedGpsCache/gpsErrorCode for telemetry.
  *
@@ -468,14 +497,31 @@ WeatherProvider.prototype.withGeocodeCoordinates = function(callback, onFailure)
  */
 WeatherProvider.prototype.withGpsCoordinates = function(callback, onFailure) {
     var provider = this;
+    var cachedFix;
     var options = {
         enableHighAccuracy: true,
-        maximumAge: provider.gpsMaxAgeMs || 10000,
+        // The app owns reuse via the cache below; when we actually call native we
+        // want a genuinely fresh fix, not whatever the OS happens to hold.
+        maximumAge: 0,
         timeout: 10000
     };
 
     provider.usedGpsCache = false;
     provider.gpsErrorCode = null;
+
+    // App-enforced cache: reuse a stored fix while it is within the configured
+    // window instead of trusting native maximumAge, which the phone OS may ignore
+    // (especially under enableHighAccuracy). Reuse here is intentional, not an
+    // error fallback, so gpsErrorCode stays null.
+    if (provider.gpsMaxAgeMs > 0) {
+        cachedFix = readGpsCache();
+        if (cachedFix && Date.now() - cachedFix.time <= provider.gpsMaxAgeMs) {
+            console.log('Reusing cached GPS fix: lat= ' + cachedFix.lat + ' lon= ' + cachedFix.lon);
+            provider.usedGpsCache = true;
+            callback(cachedFix.lat, cachedFix.lon);
+            return;
+        }
+    }
 
     function success(pos) {
         var lat = pos.coords.latitude;

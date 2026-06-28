@@ -824,3 +824,7 @@ void forecast_layer_destroy()
     layer_destroy(s_forecast_layer);
     MEMORY_LOG_HEAP("forecast_layer_destroy:after");
 }
+
+Layer *forecast_layer_get_root(void) {
+    return s_forecast_layer;
+}

@@ -307,7 +307,7 @@ static void radar_or_snooze_update_proc(Layer *layer, GContext *ctx) {
 void rain_radar_layer_create(Layer *parent, GRect frame) {
     s_radar_layer = layer_create(frame);
     layer_set_update_proc(s_radar_layer, radar_or_snooze_update_proc);
-    layer_set_hidden(s_radar_layer, true);  // starts hidden; visibility owned by main_window apply_top_view()
+    layer_set_hidden(s_radar_layer, true);  // starts hidden; visibility owned by main_window apply_bottom_view()
     layer_add_child(parent, s_radar_layer);
     MEMORY_LOG_HEAP("after_rain_radar_layer_create");
 }

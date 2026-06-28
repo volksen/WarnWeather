@@ -11,23 +11,23 @@
 #include "c/appendix/memory_log.h"
 
 typedef enum {
-    TOP_VIEW_CALENDAR = 0,
-    TOP_VIEW_RAIN_RADAR = 1
-} TopView;
+    BOTTOM_VIEW_FORECAST = 0,
+    BOTTOM_VIEW_RAIN_RADAR = 1
+} BottomView;
 
-static TopView s_top_view;
+static BottomView s_bottom_view;
 
 static bool radar_has_data(void) {
     return persist_get_rain_radar_start() > 0;
 }
 
-static void apply_top_view(TopView v) {
-    if (v == TOP_VIEW_RAIN_RADAR && !radar_has_data()) {
-        v = TOP_VIEW_CALENDAR;
+static void apply_bottom_view(BottomView v) {
+    if (v == BOTTOM_VIEW_RAIN_RADAR && !radar_has_data()) {
+        v = BOTTOM_VIEW_FORECAST;
     }
-    s_top_view = v;
-    layer_set_hidden(calendar_layer_get_root(), v != TOP_VIEW_CALENDAR);
-    layer_set_hidden(rain_radar_layer_get_root(), v != TOP_VIEW_RAIN_RADAR);
+    s_bottom_view = v;
+    layer_set_hidden(forecast_layer_get_root(), v != BOTTOM_VIEW_FORECAST);
+    layer_set_hidden(rain_radar_layer_get_root(), v != BOTTOM_VIEW_RAIN_RADAR);
 }
 
 static void tap_handler(AccelAxisType axis, int32_t direction) {
@@ -41,14 +41,14 @@ static void tap_handler(AccelAxisType axis, int32_t direction) {
     uint64_t now_ms = (uint64_t)now_s * 1000 + now_ms_part;
     if (now_ms - s_last_tap_ms < 500) return;
     s_last_tap_ms = now_ms;
-    if (s_top_view == TOP_VIEW_CALENDAR && !radar_has_data()) { return; }
-    apply_top_view(s_top_view == TOP_VIEW_CALENDAR ? TOP_VIEW_RAIN_RADAR : TOP_VIEW_CALENDAR);
+    if (s_bottom_view == BOTTOM_VIEW_FORECAST && !radar_has_data()) { return; }
+    apply_bottom_view(s_bottom_view == BOTTOM_VIEW_FORECAST ? BOTTOM_VIEW_RAIN_RADAR : BOTTOM_VIEW_FORECAST);
 }
 
-#define FORECAST_HEIGHT 51
-#define WEATHER_STATUS_HEIGHT 19
+#define FORECAST_HEIGHT 60 //51
+#define WEATHER_STATUS_HEIGHT 20
 #define TIME_HEIGHT 45
-#define CALENDAR_HEIGHT 40
+#define SPACE_TOP_TIME 10 
 #define EMERY_WINDOW_PAD_X 2
 #define EMERY_WINDOW_PAD_TOP 2
 #define EMERY_WINDOW_PAD_BOTTOM 4
@@ -64,12 +64,12 @@ static Window *s_main_window;
 #ifdef PBL_PLATFORM_EMERY
 // emery: scale the main content bands proportionally to fill the taller screen
 // while preserving the legacy calendar/time/forecast balance.
-static void compute_content_layout(int content_h, int *calendar_h, int *time_h, int *forecast_h) {
-    const int weight_sum = CALENDAR_HEIGHT + TIME_HEIGHT + FORECAST_HEIGHT;
+static void compute_content_layout(int content_h, int *space_h, int *time_h, int *forecast_h) {
+    const int weight_sum = SPACE_TOP_TIME + TIME_HEIGHT + FORECAST_HEIGHT;
 
-    *calendar_h = (content_h * CALENDAR_HEIGHT) / weight_sum;
+    *space_h = (content_h * SPACE_TOP_TIME) / weight_sum;
     *time_h = (content_h * TIME_HEIGHT) / weight_sum;
-    *forecast_h = content_h - *calendar_h - *time_h;
+    *forecast_h = content_h - *space_h - *time_h;
 }
 #endif
 
@@ -88,21 +88,21 @@ static void main_window_load(Window *window) {
     int content_w = w - EMERY_WINDOW_PAD_X * 2;
     int forecast_w = w - content_x;
     int content_h = h - EMERY_WINDOW_PAD_TOP - EMERY_WINDOW_PAD_BOTTOM - CALENDAR_STATUS_HEIGHT - WEATHER_STATUS_HEIGHT;
-    int calendar_h;
+    int space_h;
     int time_h;
     int forecast_h;
-    compute_content_layout(content_h, &calendar_h, &time_h, &forecast_h);
+    compute_content_layout(content_h, &space_h, &time_h, &forecast_h);
 
     int calendar_y = content_y + CALENDAR_STATUS_HEIGHT;
-    int time_y = calendar_y + calendar_h;
+    int time_y = calendar_y + space_h;
     int weather_status_y = time_y + time_h;
     int forecast_y = weather_status_y + WEATHER_STATUS_HEIGHT;
 
     forecast_layer_create(window_layer, GRect(content_x, forecast_y, forecast_w, forecast_h));
     weather_status_layer_create(window_layer, GRect(content_x, weather_status_y, content_w, WEATHER_STATUS_HEIGHT));
     time_layer_create(window_layer, GRect(content_x, time_y, content_w, time_h));
-    calendar_layer_create(window_layer, GRect(content_x, calendar_y, content_w, calendar_h));
-    rain_radar_layer_create(window_layer, GRect(content_x, calendar_y, content_w, calendar_h));
+   // calendar_layer_create(window_layer, GRect(content_x, calendar_y, content_w, space_h));
+    rain_radar_layer_create(window_layer, GRect(content_x, forecast_y, forecast_w, forecast_h));
     calendar_status_layer_create(window_layer, GRect(content_x, content_y, content_w, CALENDAR_STATUS_HEIGHT + 1)); // +1 to stop text clipping
     loading_layer_create(window_layer, GRect(content_x, weather_status_y, content_w, h - EMERY_WINDOW_PAD_BOTTOM - weather_status_y));
 #else
@@ -113,10 +113,10 @@ static void main_window_load(Window *window) {
     time_layer_create(window_layer,
             GRect(0, h - FORECAST_HEIGHT - WEATHER_STATUS_HEIGHT - TIME_HEIGHT,
             bounds.size.w, TIME_HEIGHT));
-    calendar_layer_create(window_layer,
-            GRect(0, CALENDAR_STATUS_HEIGHT, bounds.size.w, CALENDAR_HEIGHT));
+    // calendar_layer_create(window_layer,
+    //         GRect(0, CALENDAR_STATUS_HEIGHT, bounds.size.w, SPACE_TOP_TIME));
     rain_radar_layer_create(window_layer,
-            GRect(0, CALENDAR_STATUS_HEIGHT, bounds.size.w, CALENDAR_HEIGHT));
+            GRect(0,  h - FORECAST_HEIGHT - WEATHER_STATUS_HEIGHT, w, WEATHER_STATUS_HEIGHT));
     calendar_status_layer_create(window_layer,
             GRect(0, 0, bounds.size.w, CALENDAR_STATUS_HEIGHT + 1));  // +1 to stop text clipping
     loading_layer_create(window_layer,
@@ -126,9 +126,9 @@ static void main_window_load(Window *window) {
     app_message_send_startup_state(loading_layer_data_is_fresh());
     // The top view is session-only state: every launch starts on the calendar
     // and a tap toggles to the radar whenever radar data is available.
-    //apply_top_view(TOP_VIEW_CALENDAR);
-    apply_top_view(TOP_VIEW_RAIN_RADAR );
-    //accel_tap_service_subscribe(tap_handler);
+    apply_bottom_view(BOTTOM_VIEW_FORECAST);
+    //apply_bottom_view(BOTTOM_VIEW_RAIN_RADAR );
+    accel_tap_service_subscribe(tap_handler);
     MEMORY_LOG_HEAP("after_window_load");
 }
 
@@ -138,7 +138,7 @@ static void main_window_unload(Window *window) {
     time_layer_destroy();
     weather_status_layer_destroy();
     forecast_layer_destroy();
-    calendar_layer_destroy();
+//    calendar_layer_destroy();
     rain_radar_layer_destroy();
     calendar_status_layer_destroy();
     loading_layer_destroy();
@@ -149,7 +149,7 @@ static void minute_handler(struct tm *tick_time, TimeUnits units_changed) {
     time_layer_tick();
     /* tm_hour==0 missed day changes from emulator time jumps (same clock, new date). */
     if (units_changed & DAY_UNIT) {
-        calendar_layer_refresh();
+        //calendar_layer_refresh();
         calendar_status_layer_refresh();
     }
     calendar_status_layer_tick();
@@ -191,16 +191,16 @@ void main_window_create() {
 }
 
 void main_window_apply_top_view() {
-    // Re-apply the current view after radar availability changed; apply_top_view
+    // Re-apply the current view after radar availability changed; apply_bottom_view
     // downgrades to the calendar when the radar data was cleared.
-    apply_top_view(s_top_view);
+    apply_bottom_view(s_bottom_view);
 }
 
 void main_window_refresh() {
     time_layer_refresh();
     weather_status_layer_refresh();
     forecast_layer_refresh();
-    calendar_layer_refresh();
+    //calendar_layer_refresh();
     calendar_status_layer_refresh();
 }
 

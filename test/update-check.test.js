@@ -102,3 +102,7 @@ test('decide: a null store version blocks notification', () => {
   assert.equal(d.shouldNotify, false);
   assert.equal(d.version, null);
 });
+
+test('commonAvailableVersion trims whitespace from version strings', () => {
+  assert.equal(updateCheck.commonAvailableVersion([' 1.5.0 ', '1.6.0']), '1.5.0');
+});

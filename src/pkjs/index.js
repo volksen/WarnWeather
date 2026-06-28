@@ -389,6 +389,8 @@ function maybeShowReleaseNotification(hadExistingInstall, forceVersionSpec) {
  * @param {Function} callback Receives string[] of versions, or null on any failure.
  * @returns {void}
  */
+var XHR_TIMEOUT_MS = 5000;
+
 function fetchStoreVersions(urls, callback) {
     var versions = [];
 
@@ -400,6 +402,7 @@ function fetchStoreVersions(urls, callback) {
         }
         xhr = new XMLHttpRequest();
         xhr.open('GET', urls[i]);
+        xhr.timeout = XHR_TIMEOUT_MS;
         xhr.onload = function() {
             var version;
             if (xhr.status < 200 || xhr.status >= 300) {
@@ -418,6 +421,10 @@ function fetchStoreVersions(urls, callback) {
         };
         xhr.onerror = function() {
             console.log('[update-check] store ' + i + ' request error');
+            callback(null);
+        };
+        xhr.ontimeout = function() {
+            console.log('[update-check] store ' + i + ' request timeout');
             callback(null);
         };
         xhr.send();

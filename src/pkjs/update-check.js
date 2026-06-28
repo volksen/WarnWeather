@@ -34,9 +34,10 @@ function parseLatestVersion(responseText) {
 }
 
 /**
- * Reduce per-store latest versions to the highest version available in EVERY
- * store (the semver minimum). Returns null unless every store reported a valid
- * version, so callers only announce a version installable from either store.
+ * Return the newest version available in EVERY store — i.e. the semver-minimum
+ * of the per-store latest versions, so the result is installable from any store.
+ * Returns null unless every store reported a valid version, so callers only
+ * announce a version installable from either store.
  *
  * @param {Array<string|null>} storeVersions Per-store latest versions.
  * @returns {string|null} Semver-min version, or null when the list is empty or
@@ -55,7 +56,7 @@ function commonAvailableVersion(storeVersions) {
             return null;
         }
         if (min === null || compareSemver(v, min) < 0) {
-            min = v;
+            min = v.trim();
         }
     }
     return min;

@@ -146,3 +146,12 @@ test('legend uses white style glyphs on B&W (no hues)', () => {
   assert.ok(svg.indexOf('>Temp<') >= 0 && svg.indexOf('>Wind<') >= 0 && svg.indexOf('>Rain<') >= 0);
   assert.equal(svg.indexOf('#FFFF00'), -1, 'no wind hue in the B&W legend');
 });
+
+test('legend shows the second metric as white dots on B&W (no hue)', () => {
+  const svg = B.forecastPreview(
+    { barSource: 'off', secondaryLine: 'wind', thirdLine: 'gust', windScale: 'mid', dayNightShading: false },
+    { color: false });
+  assert.ok(svg.indexOf('>Gust<') >= 0, 'second-metric legend entry (Gust) present');
+  assert.ok(svg.indexOf('fill="#FFFFFF"') >= 0, 'second metric renders as white squares on B&W');
+  assert.equal(svg.indexOf('#AAAAAA'), -1, 'no gust gray hue on B&W (white instead)');
+});

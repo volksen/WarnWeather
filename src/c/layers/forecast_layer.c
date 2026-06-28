@@ -641,6 +641,7 @@ static void forecast_update_proc(Layer *layer, GContext *ctx)
     const bool line_on = ds.line_present > 0;
     const bool fill_on = line_on && ds.line_fill;
     const bool bars_on = ds.bars_present > 0;
+    const bool third_line_on = ds.third_line_present;  // already a flag (persist_exists), no > 0
 
     NightLayerCtx night_ctx = {
         // Width spans slot 0..(num_entries-1) so the linear time->x map lands
@@ -721,7 +722,7 @@ static void forecast_update_proc(Layer *layer, GContext *ctx)
     // dots stay visible where the two overlap (the opaque fill would otherwise hide them).
     // Per-metric color on color watches; white on B&W, where the dots (not color) distinguish
     // it from the solid main-metric line.
-    if (ds.third_line_present) {
+    if (third_line_on) {
         layers[n++] = (ChartLayer){ CHART_LAYER_LINE, .line = {
             .values = ds.third_line, .count = ds.num_entries,
             .lo = 0, .hi = FORECAST_TREND_FULL_SCALE, .inset_y = 0,

@@ -64,7 +64,7 @@ static const GPathInfo ARROW_PATH_INFO = {
     }
 };
 
-static GFont temp_font(void) { return fonts_get_system_font(FONT_KEY_GOTHIC_18); }
+static GFont temp_font(void) { return fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD); }
 static GFont city_font(void) { return fonts_get_system_font(CITY_FONT_KEY); }
 static GFont sun_font(void)  { return fonts_get_system_font(SUN_EVENT_FONT_KEY); }
 

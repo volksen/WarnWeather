@@ -5,6 +5,7 @@ require('./polyfills.js');
 
 var radar = require('./weather/radar.js');
 var radarDispatch = require('./weather/radar-dispatch.js');
+var runFetchCycle = require('./weather/fetch-orchestrator.js').runFetchCycle;
 var forecastSeries = require('./forecast-series.js');
 var WeatherProvider = require('./weather/provider.js');
 var createTelemetryClient = require('./telemetry.js');
@@ -645,35 +646,25 @@ function isWatchConnected() {
 }
 
 /**
- * Fetch rain-radar data via withRadar2hRain and invoke `callback` with
- * an object of three AppMessage tuples ready to be merged into the
- * weather payload. On any failure (no coordinates, network error,
- * radar parse error) calls `callback(null)` after logging; the weather
- * payload still ships without radar tuples.
+ * Fetch rain-radar tuples for already-resolved coordinates (single per-cycle
+ * acquisition). On any failure calls `callback(null)`; the weather payload still
+ * ships without radar tuples. Out-of-coverage produces zero arrays, shipped
+ * normally.
  *
- * Out-of-coverage (DWD returns radar: []) is NOT a failure — it
- * produces zero arrays via withRadar2hRain, which is shipped normally.
- *
- * Relies on the existing GPS cache (the configurable maximumAge in
- * WeatherProvider.withGpsCoordinates, always >= the update interval) to absorb
- * the second getCurrentPosition call that provider.fetch makes shortly after.
- *
- * @param {Object} provider Active WeatherProvider (has .withCoordinates).
- * @param {Function} callback Receives `{tuples}` or `null`.
+ * @param {number} lat Latitude in decimal degrees.
+ * @param {number} lon Longitude in decimal degrees.
+ * @param {Function} callback Receives a radar tuples object, or null.
  * @returns {void}
  */
-function withRainRadarTuples(provider, callback) {
-    // RAIN_RADAR_START is the watch's "5-min pinned" slot-0 epoch: the
-    // most recent wall-clock 5-min boundary at or before dispatch (so at
-    // 16:53 the radar starts at 16:50). Computed here so providers share
-    // the same time anchor.
+function withRainRadarTuplesAt(lat, lon, callback) {
+    // RAIN_RADAR_START is the watch's "5-min pinned" slot-0 epoch: the most
+    // recent wall-clock 5-min boundary at or before dispatch.
     var RADAR_SLOT_SECONDS = 5 * 60;
     var slotZeroEpoch = Math.floor(Date.now() / 1000 / RADAR_SLOT_SECONDS) * RADAR_SLOT_SECONDS;
-    // Radar source is configured independently of the forecast provider; the
-    // active provider is used only as a coordinate source for DWD radar.
-    radarDispatch.dispatchRadarTuples(
+    // Radar source is configured independently of the forecast provider.
+    radarDispatch.dispatchRadarTuplesAt(
         app.settings.radarProvider,
-        { provider: provider, slotZeroEpoch: slotZeroEpoch, fetchDwd: radar.fetchRadarTuples },
+        { lat: lat, lon: lon, slotZeroEpoch: slotZeroEpoch, fetchDwdAt: radar.fetchRadarTuplesAt },
         callback
     );
 }
@@ -762,8 +753,14 @@ function fetch(provider, force) {
     }
 
     try {
-        withRainRadarTuples(provider, function(radarTuples) {
-            provider.fetch(onFetchSuccess, onFetchFailure, force, buildWeatherExtras(radarTuples), toRenderPayload);
+        runFetchCycle({
+            provider: provider,
+            fetchRadar: withRainRadarTuplesAt,
+            buildExtras: buildWeatherExtras,
+            onSuccess: onFetchSuccess,
+            onFailure: onFetchFailure,
+            force: force,
+            payloadTransform: toRenderPayload
         });
     }
     catch (e) {

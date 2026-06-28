@@ -2,7 +2,6 @@
 #include "c/layers/time_layer.h"
 #include "c/layers/forecast_layer.h"
 #include "c/layers/weather_status_layer.h"
-#include "c/layers/calendar_layer.h"
 #include "c/layers/rain_radar_layer.h"
 #include "c/layers/calendar_status_layer.h"
 #include "c/layers/loading_layer.h"
@@ -46,9 +45,8 @@ static void tap_handler(AccelAxisType axis, int32_t direction) {
 }
 
 #define FORECAST_HEIGHT 60 //51
-#define WEATHER_STATUS_HEIGHT 20
+#define WEATHER_STATUS_HEIGHT 25
 #define TIME_HEIGHT 45
-#define SPACE_TOP_TIME 10 
 #define EMERY_WINDOW_PAD_X 2
 #define EMERY_WINDOW_PAD_TOP 2
 #define EMERY_WINDOW_PAD_BOTTOM 4
@@ -64,12 +62,11 @@ static Window *s_main_window;
 #ifdef PBL_PLATFORM_EMERY
 // emery: scale the main content bands proportionally to fill the taller screen
 // while preserving the legacy calendar/time/forecast balance.
-static void compute_content_layout(int content_h, int *space_h, int *time_h, int *forecast_h) {
-    const int weight_sum = SPACE_TOP_TIME + TIME_HEIGHT + FORECAST_HEIGHT;
+static void compute_content_layout(int content_h, int *time_h, int *forecast_h) {
+    const int weight_sum =   TIME_HEIGHT + FORECAST_HEIGHT;
 
-    *space_h = (content_h * SPACE_TOP_TIME) / weight_sum;
     *time_h = (content_h * TIME_HEIGHT) / weight_sum;
-    *forecast_h = content_h - *space_h - *time_h;
+    *forecast_h = content_h  - *time_h;
 }
 #endif
 
@@ -88,20 +85,19 @@ static void main_window_load(Window *window) {
     int content_w = w - EMERY_WINDOW_PAD_X * 2;
     int forecast_w = w - content_x;
     int content_h = h - EMERY_WINDOW_PAD_TOP - EMERY_WINDOW_PAD_BOTTOM - CALENDAR_STATUS_HEIGHT - WEATHER_STATUS_HEIGHT;
-    int space_h;
+
     int time_h;
     int forecast_h;
-    compute_content_layout(content_h, &space_h, &time_h, &forecast_h);
+    compute_content_layout(content_h, &time_h, &forecast_h);
 
     int calendar_y = content_y + CALENDAR_STATUS_HEIGHT;
-    int time_y = calendar_y + space_h;
+    int time_y = calendar_y;
     int weather_status_y = time_y + time_h;
     int forecast_y = weather_status_y + WEATHER_STATUS_HEIGHT;
 
     forecast_layer_create(window_layer, GRect(content_x, forecast_y, forecast_w, forecast_h));
     weather_status_layer_create(window_layer, GRect(content_x, weather_status_y, content_w, WEATHER_STATUS_HEIGHT));
     time_layer_create(window_layer, GRect(content_x, time_y, content_w, time_h));
-   // calendar_layer_create(window_layer, GRect(content_x, calendar_y, content_w, space_h));
     rain_radar_layer_create(window_layer, GRect(content_x, forecast_y, forecast_w, forecast_h));
     calendar_status_layer_create(window_layer, GRect(content_x, content_y, content_w, CALENDAR_STATUS_HEIGHT + 1)); // +1 to stop text clipping
     loading_layer_create(window_layer, GRect(content_x, weather_status_y, content_w, h - EMERY_WINDOW_PAD_BOTTOM - weather_status_y));
@@ -113,8 +109,7 @@ static void main_window_load(Window *window) {
     time_layer_create(window_layer,
             GRect(0, h - FORECAST_HEIGHT - WEATHER_STATUS_HEIGHT - TIME_HEIGHT,
             bounds.size.w, TIME_HEIGHT));
-    // calendar_layer_create(window_layer,
-    //         GRect(0, CALENDAR_STATUS_HEIGHT, bounds.size.w, SPACE_TOP_TIME));
+
     rain_radar_layer_create(window_layer,
             GRect(0,  h - FORECAST_HEIGHT - WEATHER_STATUS_HEIGHT, w, WEATHER_STATUS_HEIGHT));
     calendar_status_layer_create(window_layer,
@@ -127,7 +122,7 @@ static void main_window_load(Window *window) {
     // The top view is session-only state: every launch starts on the calendar
     // and a tap toggles to the radar whenever radar data is available.
     apply_bottom_view(BOTTOM_VIEW_FORECAST);
-    //apply_bottom_view(BOTTOM_VIEW_RAIN_RADAR );
+
     accel_tap_service_subscribe(tap_handler);
     MEMORY_LOG_HEAP("after_window_load");
 }
@@ -138,7 +133,7 @@ static void main_window_unload(Window *window) {
     time_layer_destroy();
     weather_status_layer_destroy();
     forecast_layer_destroy();
-//    calendar_layer_destroy();
+
     rain_radar_layer_destroy();
     calendar_status_layer_destroy();
     loading_layer_destroy();
@@ -200,7 +195,7 @@ void main_window_refresh() {
     time_layer_refresh();
     weather_status_layer_refresh();
     forecast_layer_refresh();
-    //calendar_layer_refresh();
+
     calendar_status_layer_refresh();
 }
 

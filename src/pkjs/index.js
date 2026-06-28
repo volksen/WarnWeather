@@ -453,8 +453,8 @@ function finishUpdateCheck(storeVersions) {
     console.log(decision.logLine);
     if (decision.shouldNotify) {
         Pebble.showSimpleNotificationOnPebble(
-            'Update available',
-            'Open the Pebble app store from your watch settings to get the latest version.'
+            'WarnWeather update',
+            'A new version is available. Open the Pebble app on your phone to install it.'
         );
         localStorage.setItem(KEY_UPDATE_NOTIFIED_VERSION, decision.version);
         console.log('[update-check] notified version=' + decision.version);

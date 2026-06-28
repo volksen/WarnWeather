@@ -21,7 +21,7 @@ function hex(n) {
  * and rain-tier (bar tiers); the temperature curve color mirrors the C-side constant
  * GColorRed (forecast_layer.c PBL_IF_COLOR_ELSE(GColorRed, GColorWhite)) — it is never
  * sent over the wire, so it is a documented mirror, not a shared source.
- * @returns {Object} See module interface in the plan.
+ * @returns {{temp:string, precip:string, wind:string, uv:string, gustOnColor:string, gustOnWhite:string, fillPrecip:string, white:string, rainTiers:Array<{from:number, color:string}>}} Preview palette (#RRGGBB strings; rainTiers.from are permille thresholds).
  */
 function buildPreviewPalette() {
     var tierPal = rainTier.buildPalette('basalt', 'multicolor');

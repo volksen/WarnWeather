@@ -94,12 +94,12 @@ test('blocks barPermille matches rain-tier.rainPermille byte-for-byte', () => {
     assert.equal(B.barPermille(t), rt.rainPermille(t), 'tenths=' + t));
 });
 
-test('rain bars span the full plot width (no early stop)', () => {
+test('the second metric (dots) spans the full plot width (no early stop)', () => {
   const svg = B.forecastPreview(
-    { barSource: 'rain', rainBarColor: 'multicolor', secondaryLine: 'wind', windScale: 'mid', dayNightShading: false },
+    { barSource: 'off', secondaryLine: 'precip_prob', thirdLine: 'gust', windScale: 'mid', dayNightShading: false },
     { color: true });
   const xs = (svg.match(/<rect x="([\d.]+)"/g) || []).map((m) => parseFloat(m.replace(/[^\d.]/g, '')));
-  assert.ok(Math.max.apply(null, xs) > 180, 'a bar reaches the right edge (>180); got ' + Math.max.apply(null, xs));
+  assert.ok(Math.max.apply(null, xs) > 180, 'a dot reaches the right edge (>180); got ' + Math.max.apply(null, xs));
 });
 
 test('UV line breaks at zeros instead of lying on the axis', () => {
@@ -163,4 +163,14 @@ test('radarPreview shows a Rain legend (tier gradient on color, outline on B&W)'
   assert.ok(color.indexOf('>Rain<') >= 0, 'Rain label present');
   assert.ok(color.indexOf('fill="#00FF00"') >= 0, 'tier gradient (green) present on color');
   assert.ok(bw.indexOf('>Rain<') >= 0, 'Rain label present on B&W too');
+});
+
+test('precip secondary line draws the cobalt fill on color and a hatch on B&W', () => {
+  const base = { barSource: 'off', secondaryLine: 'precip_prob', secondaryLineFill: true, windScale: 'mid', dayNightShading: false };
+  const color = B.forecastPreview(base, { color: true });
+  assert.ok(color.indexOf('fill="#0055AA"') >= 0 && color.indexOf('fill-opacity="0.25"') >= 0,
+    'color: translucent cobalt precip fill present');
+  const bw = B.forecastPreview(base, { color: false });
+  assert.ok(bw.indexOf('fill="url(#fillhatch)"') >= 0, 'B&W: precip fill uses the hatch pattern');
+  assert.equal(bw.indexOf('fill="#0055AA"'), -1, 'B&W: no solid cobalt fill');
 });

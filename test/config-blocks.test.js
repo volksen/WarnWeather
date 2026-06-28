@@ -155,3 +155,12 @@ test('legend shows the second metric as white dots on B&W (no hue)', () => {
   assert.ok(svg.indexOf('fill="#FFFFFF"') >= 0, 'second metric renders as white squares on B&W');
   assert.equal(svg.indexOf('#AAAAAA'), -1, 'no gust gray hue on B&W (white instead)');
 });
+
+test('radarPreview shows a Rain legend (tier gradient on color, outline on B&W)', () => {
+  const color = B.radarPreview({ radarProvider: 'dwd', radarColor: 'multicolor' }, { color: true });
+  const bw = B.radarPreview({ radarProvider: 'dwd', radarColor: 'multicolor' }, { color: false });
+  assert.ok(color.indexOf('viewBox="0 0 200 138"') >= 0, 'taller frame for the legend');
+  assert.ok(color.indexOf('>Rain<') >= 0, 'Rain label present');
+  assert.ok(color.indexOf('fill="#00FF00"') >= 0, 'tier gradient (green) present on color');
+  assert.ok(bw.indexOf('>Rain<') >= 0, 'Rain label present on B&W too');
+});

@@ -325,7 +325,7 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
         var add = [0.4, 0.5, 0.7, 1, 1.5, 2, 3, 4, 3, 2, 1.5, 1, 0.8, 0.5, 0.4, 0.3, 0.5, 1.5, 3, 4, 3, 2, 1, 0.5];
         var n = local.length, PX0 = 11, PX1 = 196, PT = 24, PB = 99, plotH = PB - PT;
         var step = (PX1 - PX0) / n, bw = step - 1.6;
-        var e = rect(0, 0, 200, 120, '#000');
+        var e = rect(0, 0, 200, 138, '#000');
         var topY = PT - 7;
         e += '<line x1="' + PX0 + '" y1="' + topY + '" x2="' + PX1 + '" y2="' + topY + '" stroke="rgba(255,255,255,0.22)" stroke-width="0.6"></line>';
         for (var k = 0; k <= n; k++) {
@@ -344,7 +344,19 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
             }
             e += rainBars(local[i], x, bw, PB, plotH, radarWhite, P.rainTiers, false);
         }
-        return svgFrame(e);
+        // Rain legend: tier gradient (color) or outline box (B&W) + label.
+        var lgy = 128, lx = PX0;
+        if (!radarWhite) {
+            for (var t = 0; t < P.rainTiers.length; t += 1) {
+                e += rect(lx + t * 2.4, lgy - 3.5, 2.4, 7, P.rainTiers[t].color);
+            }
+            lx += P.rainTiers.length * 2.4 + 2;
+        } else {
+            e += '<rect x="' + lx + '" y="' + (lgy - 3.5) + '" width="12" height="7" fill="none" stroke="' + P.white + '" stroke-width="1"></rect>';
+            lx += 14;
+        }
+        e += txt(lx + 3, 131, 7.5, '#AEB4BD', 'start', 600, 'Rain');
+        return svgFrame(e, 138);
     }
 
     /* ---- devStats: ported from inject.js:30-199 renderDevStats, minus clear button --- */

@@ -21,8 +21,11 @@ contributor tool working in this repo. (Claude Code reads it through `CLAUDE.md`
   `build/config-ui-preview.html`. Open it in a desktop
   browser to eyeball/interact with the settings UI (tabs, toggles, color picker all
   work) without the emulator. It reads source fresh each run, so it always reflects
-  the current `shell.html`/`blocks.js`. Pass `[out] [platform]` to vary (e.g.
-  `mise preview-config -- preview.html aplite` for the B/W rendering).
+  the current `shell.html`/`blocks.js`. Args are `[out] [platform]`, parsed
+  order-independently: a bare platform name picks the platform and keeps the default
+  output path, so `mise preview-config -- aplite` gives the B/W rendering in
+  `build/config-ui-preview.html` (pass an explicit filename too — e.g.
+  `mise preview-config -- preview.html aplite` — to vary the output path).
 
 ## Tests
 

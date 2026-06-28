@@ -102,12 +102,71 @@ test('the second metric (dots) spans the full plot width (no early stop)', () =>
   assert.ok(Math.max.apply(null, xs) > 180, 'a dot reaches the right edge (>180); got ' + Math.max.apply(null, xs));
 });
 
-test('UV line breaks at zeros instead of lying on the axis', () => {
+test('UV line is continuous through zeros (single path that reaches the baseline)', () => {
   const svg = B.forecastPreview(
     { barSource: 'off', secondaryLine: 'uv', windScale: 'mid', dayNightShading: false },
     { color: true });
   const segs = svg.match(/fill="none" stroke="#FF00FF"/g) || [];
-  assert.ok(segs.length >= 2, 'UV renders as >=2 separate segments (day + dawn); got ' + segs.length);
+  assert.equal(segs.length, 1, 'UV renders as one continuous path (no break at zero); got ' + segs.length);
+  const m = svg.match(/d="(M[^"]+)" fill="none" stroke="#FF00FF"/);
+  assert.ok(m, 'UV path present');
+  assert.ok(m[1].indexOf(',100 ') >= 0, 'UV path touches the baseline (y=100) across its zero stretch');
+});
+
+test('forecastPreview honors rainBarColor=white in color mode (solid white bars, no tier bands)', () => {
+  const base = { dayNightShading: false, barSource: 'rain', secondaryLine: 'off', windScale: 'mid' };
+  const white = B.forecastPreview(Object.assign({}, base, { rainBarColor: 'white' }), { color: true });
+  const multi = B.forecastPreview(Object.assign({}, base, { rainBarColor: 'multicolor' }), { color: true });
+  // Rain-bar bands are width-9 rects; the legend gradient uses width-2.4, so scope to width="9".
+  assert.ok(/width="9"[^>]*fill="#00FF00"/.test(multi), 'multicolor: a green tier band on a bar');
+  assert.ok(!/width="9"[^>]*fill="#00FF00"/.test(white), 'white: no green tier band on a bar');
+  assert.ok(/width="9"[^>]*fill="#FFFFFF"/.test(white), 'white: a solid white bar');
+});
+
+test('forecast grid: temp line spans the first tick to the last tick (edge to edge)', () => {
+  const svg = B.forecastPreview(
+    { dayNightShading: false, barSource: 'off', secondaryLine: 'off', windScale: 'mid' },
+    { color: true });
+  const m = svg.match(/d="(M[^"]+)" fill="none" stroke="#FF0000"/);
+  assert.ok(m, 'temp curve present');
+  const d = m[1];
+  assert.equal(d.indexOf('M20,'), 0, 'temp line starts on the first tick (PX0=20); got ' + d.slice(0, 14));
+  const tokens = d.replace(/[MC]/g, ' ').trim().split(/\s+/);
+  const lastX = parseFloat(tokens[tokens.length - 1].split(',')[0]);
+  assert.equal(lastX, 197, 'temp line ends on the last tick (PX1=197); got ' + lastX);
+});
+
+test('forecast grid: rain bars sit centered in the hour gaps between ticks', () => {
+  const svg = B.forecastPreview(
+    { dayNightShading: false, barSource: 'rain', rainBarColor: 'multicolor', secondaryLine: 'off', windScale: 'mid' },
+    { color: true });
+  const PX0 = 20, PX1 = 197, N = 12, pitch = (PX1 - PX0) / (N - 1), bw = 9;
+  const lefts = (svg.match(/<rect x="[\d.]+" y="[\d.]+" width="9"/g) || [])
+    .map((s) => parseFloat(s.match(/x="([\d.]+)"/)[1]));
+  const xs = [...new Set(lefts)];
+  assert.ok(xs.length >= 3, 'several rain bars present; got ' + xs.length);
+  xs.forEach((x) => {
+    const k = (x + bw / 2 - PX0) / pitch - 0.5;   // bar centre, expressed as a gap index
+    assert.ok(Math.abs(k - Math.round(k)) < 1e-6, 'bar centred in an hour gap (gap index=' + k + ')');
+  });
+});
+
+test('legend rain glyph follows white bars (white swatch, no tier gradient) when rainBarColor=white', () => {
+  const svg = B.forecastPreview(
+    { barSource: 'rain', rainBarColor: 'white', secondaryLine: 'off', windScale: 'mid', dayNightShading: false },
+    { color: true });
+  assert.ok(svg.indexOf('>Rain<') >= 0, 'Rain legend present');
+  assert.equal(svg.indexOf('width="2.4"'), -1, 'no tier-gradient swatches in the legend when bars are white');
+  assert.ok(/width="12"[^>]*fill="#FFFFFF"/.test(svg), 'a solid white Rain swatch instead');
+});
+
+test('forecastPreview has no status bar (no location, sunset, or current-temp pill)', () => {
+  const svg = B.forecastPreview(
+    { dayNightShading: false, barSource: 'off', secondaryLine: 'off', windScale: 'mid' },
+    { color: true });
+  assert.equal(svg.indexOf('Berlin'), -1, 'no location label');
+  assert.equal(svg.indexOf('21:29'), -1, 'no sunset time');
+  assert.equal(svg.indexOf('>22°<'), -1, 'no current-temp pill');
 });
 
 test('B&W: series are white, temp thick (3) vs main thin (1), no hues', () => {
@@ -124,7 +183,7 @@ test('legend lists the shown series with palette colors (color watch)', () => {
   const svg = B.forecastPreview(
     { barSource: 'rain', rainBarColor: 'multicolor', secondaryLine: 'precip_prob', thirdLine: 'wind', windScale: 'mid', dayNightShading: false },
     { color: true });
-  assert.ok(svg.indexOf('viewBox="0 0 200 124"') >= 0, 'frame is tall enough to fit the legend');
+  assert.ok(svg.indexOf('viewBox="0 0 200 124"') >= 0, 'compact frame');
   assert.ok(svg.indexOf('>Temp<') >= 0, 'Temp entry');
   assert.ok(svg.indexOf('>Precip %<') >= 0, 'main metric entry (Precip %)');
   assert.ok(svg.indexOf('>Wind<') >= 0, 'second metric entry (Wind)');
@@ -159,19 +218,19 @@ test('legend shows the second metric as white dots on B&W (no hue)', () => {
 test('radarPreview shows a Rain legend (tier gradient on color, outline on B&W)', () => {
   const color = B.radarPreview({ radarProvider: 'dwd', radarColor: 'multicolor' }, { color: true });
   const bw = B.radarPreview({ radarProvider: 'dwd', radarColor: 'multicolor' }, { color: false });
-  assert.ok(color.indexOf('viewBox="0 0 200 138"') >= 0, 'taller frame for the legend');
+  assert.ok(color.indexOf('viewBox="0 0 200 118"') >= 0, 'frame sized to fit the legend snug under the chart');
   assert.ok(color.indexOf('>Rain<') >= 0, 'Rain label present');
   assert.ok(color.indexOf('fill="#00FF00"') >= 0, 'tier gradient (green) present on color');
   assert.ok(bw.indexOf('>Rain<') >= 0, 'Rain label present on B&W too');
 });
 
-test('precip secondary line draws the cobalt fill on color and a hatch on B&W', () => {
+test('precip secondary line draws the cobalt fill on color and a dither on B&W', () => {
   const base = { barSource: 'off', secondaryLine: 'precip_prob', secondaryLineFill: true, windScale: 'mid', dayNightShading: false };
   const color = B.forecastPreview(base, { color: true });
   assert.ok(color.indexOf('fill="#0055AA"') >= 0 && color.indexOf('fill-opacity="0.25"') >= 0,
     'color: translucent cobalt precip fill present');
   const bw = B.forecastPreview(base, { color: false });
-  assert.ok(bw.indexOf('fill="url(#fillhatch)"') >= 0, 'B&W: precip fill uses the hatch pattern');
+  assert.ok(bw.indexOf('fill="url(#fillhatch)"') >= 0, 'B&W: precip fill uses the dither stipple pattern');
   assert.equal(bw.indexOf('fill="#0055AA"'), -1, 'B&W: no solid cobalt fill');
 });
 

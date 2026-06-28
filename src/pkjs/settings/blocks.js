@@ -149,17 +149,19 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
         var gust   = [22, 25, 30, 34, 32, 28, 25, 24, 27, 31, 36, 33];
         var uv     = [8, 6, 4, 2, 1, 0, 0, 0, 0, 0, 1, 3];
 
-        var n = temps.length, PX0 = 20, PX1 = 197, PT = 15, PB = 100, TH = 21;
+        var n = temps.length, PX0 = 20, PX1 = 197, PT = 4, PB = 100;
         var plotW = PX1 - PX0, plotH = PB - PT;
-        var pitch = plotW / n;
-        // Shared slot grid: line, bars and dots all centre on the same slot, so a metric reads
-        // identically as a line or as dots and every series spans the full width.
-        var slotCenter = function (i) { return PX0 + (i + 0.5) * pitch; };
-        var tickX = function (h) { return PX0 + h * plotW / TH; };
+        // One watch-faithful slot grid (chart.c): N hourly slots, one tick per slot. Slot 0 is
+        // 12:00; hour = 12 + i. Line vertices sit ON the ticks (so a line spans the first tick to
+        // the last), and rain bars / second-metric dots sit centred in the hour COLUMN between two
+        // ticks — exactly how chart_render_line vs chart_render_bars place them on the watch.
+        var pitch = plotW / (n - 1);
+        var tickX = function (i) { return PX0 + i * pitch; };              // line vertex / hour tick x
+        var gapCenter = function (i) { return PX0 + (i + 0.5) * pitch; };  // bar / dot column centre
         var tmin = Math.min.apply(null, temps), tmax = Math.max.apply(null, temps);
         var ytop = PT + 3, ybot = PB - 12;
         var yT = function (t) { return ybot - (t - tmin) / (tmax - tmin || 1) * (ybot - ytop); };
-        var n0 = tickX(9), n1 = tickX(18);          // night band 21:00 -> 06:00 on the noon ruler
+        var n0 = tickX(9), n1 = tickX(n - 1);       // night band: sunset 21:00 (slot 9) -> right edge
         var bw = 9;                                  // rain-bar / dot width
 
         var windMax = state.windScale === 'low' ? 30 : (state.windScale === 'high' ? 70 : 50);
@@ -208,58 +210,54 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
                 + '<line x1="' + n1 + '" y1="' + PT + '" x2="' + n1 + '" y2="' + PB + '" stroke="rgba(255,255,255,0.45)" stroke-width="0.7"></line>';
         }
         function drawTempCurve() {
-            return '<path d="' + smooth(temps.map(function (t, i) { return [slotCenter(i), yT(t)]; }))
+            return '<path d="' + smooth(temps.map(function (t, i) { return [tickX(i), yT(t)]; }))
                 + '" fill="none" stroke="' + tempColor + '" stroke-width="' + tempW + '" stroke-linecap="round"></path>';
         }
         function drawAxis() {
-            var lbl = { 0: '12', 3: '15', 6: '18', 9: '21', 12: '0', 15: '3', 18: '6', 21: '9' };
+            // One tick per hourly slot; a big tick + hour digit every 3rd slot (mirrors the watch's
+            // big_every = 3). Hour = 12 + i (mod 24): 12, 15, 18, 21 over the noon→23:00 window.
             var out = '';
-            for (var h = 0; h <= TH; h += 1) {
-                var big = h % 3 === 0;
-                out += '<line x1="' + tickX(h) + '" y1="' + PB + '" x2="' + tickX(h) + '" y2="' + (PB + (big ? 4 : 2)) + '" stroke="rgba(255,255,255,0.32)" stroke-width="0.6"></line>';
-                if (big) { out += txt(tickX(h), 111, 7.5, '#7C828D', 'middle', 600, lbl[h]); }
+            for (var i = 0; i < n; i += 1) {
+                var big = i % 3 === 0;
+                out += '<line x1="' + tickX(i) + '" y1="' + PB + '" x2="' + tickX(i) + '" y2="' + (PB + (big ? 4 : 2)) + '" stroke="rgba(255,255,255,0.32)" stroke-width="0.6"></line>';
+                if (big) { out += txt(tickX(i), 111, 7.5, '#7C828D', 'middle', 600, String((12 + i) % 24)); }
             }
             return out;
         }
         /**
-         * Main metric: solid line, broken into separate segments at every zero so it never lies
-         * flat on the axis (deliberate preview-only divergence from the watch's continuous line).
-         * Every metric can fill (matches the watch); the fill follows each segment, in the
-         * metric's palette fill colour on colour displays and a hatch on B&W.
+         * Main metric: one continuous line whose vertices sit on the hour ticks, so it spans the
+         * first tick to the last. Zero values stay in the line at the baseline (matching the watch's
+         * chart_render_line) rather than breaking it — a line that dips to or starts at zero is still
+         * drawn. Every metric can fill (matches the watch): the metric's palette fill colour on
+         * colour displays, a dithered stipple on B&W (mirrors the watch's 1-bit
+         * dither of the GColorLightGray fill — not diagonal lines).
          * @param {string} metric precip_prob|wind|gust|uv
          * @returns {string} SVG markup
          */
         var lineFor = function (metric) {
             var m = METRIC[metric];
             if (!m) { return ''; }
-            var col = metricColor(metric), fc = fillColor(metric), out = '', seg = [];
+            var col = metricColor(metric), fc = fillColor(metric), out = '', pts = [];
             var doFill = Boolean(state.secondaryLineFill) && Boolean(fc);
-            function flush() {
-                if (seg.length >= 2) {
-                    var d = smooth(seg);
-                    if (doFill) {
-                        var area = d + ' L' + seg[seg.length - 1][0] + ',' + PB + ' L' + seg[0][0] + ',' + PB + ' Z';
-                        out += isColor
-                            ? '<path d="' + area + '" fill="' + fc + '" fill-opacity="0.25"></path>'
-                            : '<path d="' + area + '" fill="url(#fillhatch)"></path>';
-                    }
-                    out += '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="' + mainW + '"></path>';
-                } else if (seg.length === 1) {
-                    out += rect(seg[0][0] - 0.8, seg[0][1] - 0.8, 1.6, 1.6, col);
-                }
-                seg = [];
-            }
             for (var i = 0; i < m.vals.length; i += 1) {
                 var v = Math.min(m.vals[i], m.max);
-                if (v <= 0) { flush(); continue; }
-                seg.push([slotCenter(i), PB - v / m.max * (PB - PT - 3)]);
+                if (v < 0) { v = 0; }
+                pts.push([tickX(i), PB - v / m.max * (PB - PT - 3)]);   // v == 0 lands on the baseline
             }
-            flush();
+            if (pts.length < 2) { return out; }
+            var d = smooth(pts);
+            if (doFill) {
+                var area = d + ' L' + pts[pts.length - 1][0] + ',' + PB + ' L' + pts[0][0] + ',' + PB + ' Z';
+                out += isColor
+                    ? '<path d="' + area + '" fill="' + fc + '" fill-opacity="0.25"></path>'
+                    : '<path d="' + area + '" fill="url(#fillhatch)"></path>';
+            }
+            out += '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="' + mainW + '"></path>';
             return out;
         };
         /**
-         * Second metric: bar-aligned squares; a value of 0 sits on the baseline and is skipped
-         * (mirrors the watch).
+         * Second metric: bar-aligned squares centred in the hour column (same columns as the rain
+         * bars). A value of 0 sits on the baseline and is skipped (mirrors the watch's bar-dots).
          * @param {string} metric precip_prob|wind|gust|uv
          * @returns {string} SVG markup
          */
@@ -268,11 +266,11 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
             if (!m) { return ''; }
             var col = metricColor(metric);
             var dh = (isColor && col === P.white) ? 3 : 4, out = '';
-            for (var i = 0; i < m.vals.length; i += 1) {
+            for (var i = 0; i < n - 1; i += 1) {
                 var v = Math.min(m.vals[i], m.max);
                 if (v <= 0) { continue; }
                 var cy = PB - v / m.max * (PB - PT - 3);
-                out += rect(slotCenter(i) - bw / 2, cy - dh / 2, bw, dh, col);
+                out += rect(gapCenter(i) - bw / 2, cy - dh / 2, bw, dh, col);
             }
             return out;
         };
@@ -300,12 +298,16 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
                     out += '<line x1="' + x + '" y1="' + gy + '" x2="' + (x + 12) + '" y2="' + gy + '" stroke="' + en.color + '" stroke-width="' + en.w + '" stroke-linecap="round"></line>';
                 } else if (en.kind === 'dots') {
                     out += rect(x + 1, gy - 1.6, 3.2, 3.2, en.color) + rect(x + 8, gy - 1.6, 3.2, 3.2, en.color);
-                } else if (isColor) {
+                } else if (isColor && state.rainBarColor !== 'white') {
                     for (var k = 0; k < P.rainTiers.length; k += 1) {
                         out += rect(x + k * 2.4, gy - 3.5, 2.4, 7, P.rainTiers[k].color);
                     }
                     gw = P.rainTiers.length * 2.4 + 2;
+                } else if (isColor) {
+                    // colour + white bars: a solid white swatch, matching the solid white bars
+                    out += rect(x, gy - 3.5, 12, 7, P.white);
                 } else {
+                    // B&W: outline box, matching the outlined silhouette bars
                     out += '<rect x="' + x + '" y="' + (gy - 3.5) + '" width="12" height="7" fill="none" stroke="' + P.white + '" stroke-width="1"></rect>';
                 }
                 var lx = x + gw + 3;
@@ -319,13 +321,16 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
         e += rect(0, 0, 200, 124, '#000');
         e += '<defs>'
             + '<pattern id="nh" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="4" stroke="rgba(255,255,255,0.30)" stroke-width="0.7"></line></pattern>'
-            + '<pattern id="fillhatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="4" stroke="rgba(255,255,255,0.35)" stroke-width="0.6"></line></pattern>'
+            + '<pattern id="fillhatch" width="2" height="2" patternUnits="userSpaceOnUse"><rect width="1" height="1" fill="rgba(255,255,255,0.55)" shape-rendering="crispEdges"></rect><rect x="1" y="1" width="1" height="1" fill="rgba(255,255,255,0.55)" shape-rendering="crispEdges"></rect></pattern>'
             + '</defs>';
         e += drawNightShading();
         e += '<line x1="' + PX0 + '" y1="' + PB + '" x2="' + PX1 + '" y2="' + PB + '" stroke="rgba(255,255,255,0.20)" stroke-width="0.7"></line>';
         if (state.barSource === 'rain') {
-            for (var i = 0; i < rain.length; i += 1) {
-                e += rainBars(rain[i], slotCenter(i) - bw / 2, bw, PB, plotH, !isColor, P.rainTiers, true);
+            // White when the setting says so OR on a B&W display. B&W draws the outlined silhouette
+            // (BAR_OUTLINED); colour-white draws a solid bar (BAR_SOLID) — matching the watch.
+            var rainWhite = state.rainBarColor === 'white' || !isColor;
+            for (var i = 0; i < n - 1; i += 1) {
+                e += rainBars(rain[i], gapCenter(i) - bw / 2, bw, PB, plotH, rainWhite, P.rainTiers, !isColor);
             }
         }
         e += lineFor(state.secondaryLine);
@@ -333,10 +338,9 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
             e += barDotsFor(state.thirdLine);
         }
         e += drawTempCurve();
-        e += '<circle cx="6" cy="6" r="2.7" fill="#E6E9EF"></circle>' + txt(11, 9, 9.5, '#FFFFFF', 'start', 700, '22°');
-        e += txt(3, 26, 8, '#AEB4BD', 'start', 600, tmax + '°') + txt(3, PB - 1, 8, '#AEB4BD', 'start', 600, tmin + '°');
+        // No status chrome (location / sunset / current-temp pill): the preview doesn't model it.
+        e += txt(3, PT + 11, 8, '#AEB4BD', 'start', 600, tmax + '°') + txt(3, PB - 1, 8, '#AEB4BD', 'start', 600, tmin + '°');
         e += drawAxis();
-        e += txt((n0 + n1) / 2, 10, 8.5, '#E6E9EF', 'middle', 600, 'Berlin') + txt(197, 9.5, 8, '#C9CCD2', 'end', 600, '21:29 ↓');
         e += drawLegend();
         return svgFrame(e, 124);
     }
@@ -350,7 +354,7 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
         var add = [0.4, 0.5, 0.7, 1, 1.5, 2, 3, 4, 3, 2, 1.5, 1, 0.8, 0.5, 0.4, 0.3, 0.5, 1.5, 3, 4, 3, 2, 1, 0.5];
         var n = local.length, PX0 = 11, PX1 = 196, PT = 24, PB = 99, plotH = PB - PT;
         var step = (PX1 - PX0) / n, bw = step - 1.6;
-        var e = rect(0, 0, 200, 138, '#000');
+        var e = rect(0, 0, 200, 118, '#000');
         var topY = PT - 7;
         e += '<line x1="' + PX0 + '" y1="' + topY + '" x2="' + PX1 + '" y2="' + topY + '" stroke="rgba(255,255,255,0.22)" stroke-width="0.6"></line>';
         for (var k = 0; k <= n; k++) {
@@ -370,7 +374,7 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
             e += rainBars(local[i], x, bw, PB, plotH, radarWhite, P.rainTiers, false);
         }
         // Rain legend: tier gradient (color) or outline box (B&W) + label.
-        var lgy = 128, lx = PX0;
+        var lgy = 110, lx = PX0;
         if (!radarWhite) {
             for (var t = 0; t < P.rainTiers.length; t += 1) {
                 e += rect(lx + t * 2.4, lgy - 3.5, 2.4, 7, P.rainTiers[t].color);
@@ -380,8 +384,8 @@ var PConf = (typeof global !== 'undefined' && global.PConf) ? global.PConf
             e += '<rect x="' + lx + '" y="' + (lgy - 3.5) + '" width="12" height="7" fill="none" stroke="' + P.white + '" stroke-width="1"></rect>';
             lx += 14;
         }
-        e += txt(lx + 3, 131, 7.5, '#AEB4BD', 'start', 600, 'Rain');
-        return svgFrame(e, 138);
+        e += txt(lx + 3, lgy + 3, 7.5, '#AEB4BD', 'start', 600, 'Rain');
+        return svgFrame(e, 118);
     }
 
     /* ---- devStats: ported from inject.js:30-199 renderDevStats, minus clear button --- */

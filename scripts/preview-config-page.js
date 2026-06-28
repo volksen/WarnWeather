@@ -18,6 +18,26 @@ var APP_FILES = [
   path.join(ROOT, 'src/pkjs/settings/onbuild.js')
 ];
 var DEFAULT_OUT = path.join(ROOT, 'build/config-ui-preview.html');
+var PLATFORMS = ['basalt', 'chalk', 'aplite', 'diorite', 'emery'];
+
+// Parse CLI positionals into { out, platform } order-independently. A bare platform
+// name (e.g. `mise preview-config aplite`) selects the platform and keeps the default
+// output path — otherwise the arg would be taken as a filename and written as a stray
+// extensionless "aplite" file rendered in the default (basalt) colors.
+function parseArgs(args) {
+  args = args || [];
+  var out = null;
+  var platform = null;
+  for (var i = 0; i < args.length; i++) {
+    var a = args[i];
+    if (platform === null && PLATFORMS.indexOf(a) !== -1) {
+      platform = a;
+    } else if (out === null) {
+      out = a;
+    }
+  }
+  return { out: out || DEFAULT_OUT, platform: platform || 'basalt' };
+}
 
 // color/round mirror each platform's hardware so showWhen env-gates render as they would on-watch.
 function envFor(platform) {
@@ -41,11 +61,10 @@ function run(opts) {
 }
 
 if (require.main === module) {
-  var out = process.argv[2] || DEFAULT_OUT;
-  var platform = process.argv[3] || 'basalt';
-  fs.mkdirSync(path.dirname(out), { recursive: true });
-  fs.writeFileSync(out, run({ platform: platform }));
-  console.log('wrote ' + out + ' (' + platform + ')');
+  var parsed = parseArgs(process.argv.slice(2));
+  fs.mkdirSync(path.dirname(parsed.out), { recursive: true });
+  fs.writeFileSync(parsed.out, run({ platform: parsed.platform }));
+  console.log('wrote ' + parsed.out + ' (' + parsed.platform + ')');
 }
 
-module.exports = { run: run };
+module.exports = { run: run, parseArgs: parseArgs, DEFAULT_OUT: DEFAULT_OUT, PLATFORMS: PLATFORMS };

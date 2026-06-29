@@ -38,5 +38,9 @@
   "1.5.1": {
     "title": "Update notifications & settings preview polish",
     "body": "Improved visibility of the secondary metric. Added a one-time heads-up when a newer version is available in the appstore. Settings forecast and radar preview improved."
+  },
+  "1.5.2": {
+    "title": "Forecast preview alignment",
+    "body": "The settings forecast preview now mirrors the watch: the temperature line sits on the hour ticks and the dotted metrics line up with the rain bars, with tighter top spacing."
   }
 }

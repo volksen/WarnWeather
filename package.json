@@ -1,7 +1,7 @@
 {
   "name": "warnweather",
   "author": "Toasbi",
-  "version": "1.4.1",
+  "version": "1.5.1",
   "buildProfile": "dev",
   "keywords": [
     "pebble-app"
@@ -158,12 +158,20 @@
     "1.4.1": {
       "title": "Thanks for updating!",
       "body": "WarnWeather 1.4.1 expands public-holiday highlighting to 150+ countries worldwide with refined regional pickers. Adjust your forecast, rain radar, holidays, and calendar in settings."
+    },
+    "1.5.0": {
+      "title": "UV index + third graph line",
+      "body": "Pick what the forecast graph's secondary and new third line show — precip, wind, gust or UV index. The area fill now works for any main metric, each in its own colour. Fixed Roboto and Bitham font scaling on emery"
+    },
+    "1.5.1": {
+      "title": "Update notifications & settings preview polish",
+      "body": "Improved visibility of the secondary metric. Added a one-time heads-up when a newer version is available in the appstore. Settings forecast and radar preview improved."
     }
   },
   "releaseNotification": {
     "enabled": true,
-    "title": "Thanks for updating!",
-    "body": "WarnWeather 1.4.1 expands public-holiday highlighting to 150+ countries worldwide with refined regional pickers. Adjust your forecast, rain radar, holidays, and calendar in settings."
+    "title": "Update notifications & settings preview polish",
+    "body": "Improved visibility of the secondary metric. Added a one-time heads-up when a newer version is available in the appstore. Settings forecast and radar preview improved."
   },
   "telemetry": {
     "enabled": false,
